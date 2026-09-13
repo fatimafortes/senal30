@@ -1,5 +1,23 @@
 # DECISIONS
 
+## 2026-09-13 — Commit 1 cerrado: deploy a Vercel + login probado
+
+`vercel link` creó el proyecto `senal30` en la cuenta de Vercel de la
+usuaria y conectó el repo de GitHub (auto-deploy en cada push a `main`).
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (tipo Config,
+público a propósito — está protegido por RLS) y `GEMINI_API_KEY` (tipo
+Secret) se configuraron en Production/Preview/Development. Deploy en
+https://senal30.vercel.app.
+
+Verificado:
+- `curl` a `/cases` sin sesión → 307 a `/login` (criterio de aceptación).
+- Login real con Google probado por la usuaria en producción: `/login` →
+  Google → `/auth/callback` → `/cases` mostrando su correo.
+
+**Pendiente, no bloqueante**: T7 (owner B no puede leer casos de owner A
+por RLS) se prueba después del commit 3, cuando ya haya casos reales que
+intentar leer cruzado — ahorita la tabla está vacía.
+
 ## 2026-09-13 — Incidente: secreto pegado en el chat + rotación pendiente
 
 Se pegó una `GEMINI_API_KEY` directamente en el chat con Claude Code antes de
