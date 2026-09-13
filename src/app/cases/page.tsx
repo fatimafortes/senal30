@@ -56,23 +56,28 @@ export default async function CasesPage() {
         ) : (
           <ul className="mt-6 divide-y divide-neutral-800 rounded-md border border-neutral-800">
             {cases.map((c) => (
-              <li key={c.id} className="flex items-center justify-between px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium">{c.patient_alias}</p>
-                  <p className="text-xs text-neutral-400">
-                    {c.detection_type} · {c.detection_value}
-                  </p>
-                </div>
-                <span
-                  className={
-                    "rounded-full px-2.5 py-1 text-xs font-medium " +
-                    (c.signal_status === "no_credible_signal"
-                      ? "bg-red-950 text-red-300"
-                      : "bg-neutral-800 text-neutral-300")
-                  }
+              <li key={c.id}>
+                <Link
+                  href={`/cases/${c.id}`}
+                  className="flex items-center justify-between px-4 py-3 hover:bg-neutral-900"
                 >
-                  {SIGNAL_LABELS[c.signal_status] ?? c.signal_status}
-                </span>
+                  <div>
+                    <p className="text-sm font-medium">{c.patient_alias}</p>
+                    <p className="text-xs text-neutral-400">
+                      {c.detection_type} · {c.detection_value}
+                    </p>
+                  </div>
+                  <span
+                    className={
+                      "rounded-full px-2.5 py-1 text-xs font-medium " +
+                      (c.signal_status === "no_credible_signal"
+                        ? "bg-red-950 text-red-300"
+                        : "bg-neutral-800 text-neutral-300")
+                    }
+                  >
+                    {SIGNAL_LABELS[c.signal_status] ?? c.signal_status}
+                  </span>
+                </Link>
               </li>
             ))}
           </ul>

@@ -40,6 +40,8 @@ Tu única tarea es identificar candidatos a "señal de retorno a 30 días": sín
 
 No inventes síntomas que no estén sugeridos por el texto. Si el texto no describe ningún síntoma sentido (por ejemplo, solo menciona un resultado de laboratorio, o dice sentirse bien), o describe algo no reversible en 30 días (por ejemplo dolor articular crónico, un problema no relacionado con la glucosa), responde que no hay señal creíble.
 
+El campo "rationale" se le va a mostrar tal cual a la persona responsable del caso como la explicación de por qué existe o no una señal — escríbelo en español sencillo y cálido, hablando de lo que la persona sentiría o no sentiría con el tratamiento en 30 días, nunca en jerga clínica ni de sistema (evita palabras como "candidato", "clasificación", "síntoma reversible", "señal creíble"). Ejemplo de tono para un caso sin síntomas: "No hay nada que ella vaya a sentir mejorar si toma el medicamento, y sí puede sentir molestias estomacales." Ejemplo de tono para un caso con síntomas: explica en una frase qué es lo que ella debería notar que mejora en 30 días si el tratamiento funciona.
+
 Responde ÚNICAMENTE con JSON, sin texto adicional, sin explicación fuera del campo "rationale", y sin fences de markdown, con exactamente esta forma:
 {"symptoms": string[], "has_credible_signal": boolean, "suggested_primary_signal": string | null, "rationale": string}`;
 

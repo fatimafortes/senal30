@@ -1,5 +1,73 @@
 # DECISIONS
 
+## 2026-09-13 — Commit 3: la negativa
+
+**Qué cambió**
+- `/cases/[id]`: pantalla de detalle. Cuando `signal_status ===
+  'no_credible_signal'`, la tarjeta "SIN SEÑAL DE RETORNO CREÍBLE — no se
+  puede inscribir" es el elemento visualmente dominante (borde grueso, texto
+  grande, arriba de todo lo demás) — no un mensaje de error entre otros
+  elementos. Debajo, en su propio cuadro, la razón en lenguaje llano y la
+  cita textual de la paciente; el conteo de síntomas reversibles; y la
+  etiqueta de IA obligatoria.
+- El botón "Inscribir caso" existe siempre, pero solo tiene `disabled={false}`
+  cuando `signal_status === 'available'`. Para cualquier otro estado queda
+  deshabilitado con una nota explicando por qué.
+- Dos caminos, y solo dos, cuando no hay señal creíble: "Declarar una señal"
+  (con justificación de texto obligatoria, mínimo 10 caracteres) o
+  "Registrar como no resuelto". Ambos escriben a `senal30_audit_log`
+  (`signal_manufactured`, `marked_unresolved`) y ninguno de los dos puede
+  dejar el caso en `signal_status = 'available'` — ni por construcción: las
+  rutas solo saben poner `'manufactured'` o `'unresolved'`, respectivamente.
+- Tres rutas nuevas, las tres re-verifican todo server-side sin confiar en
+  el cliente: `POST /api/cases/[id]/enroll` (rechaza con 403 si
+  `signal_status !== 'available'`, sin excepción), `POST
+  /api/cases/[id]/manufacture-signal` y `POST
+  /api/cases/[id]/mark-unresolved` (ambas rechazan con 409 si el caso no
+  está en `'no_credible_signal'`, para no poder re-resolver un caso dos
+  veces ni tocar uno que ya tenía señal).
+- **No se agregó ningún flag, override o parámetro para saltarse la
+  verificación.** No existe ninguna ruta que pueda poner
+  `signal_status = 'available'` después de la creación del caso — esa
+  decisión la toma únicamente la clasificación de IA en el commit 2, con su
+  propia red de seguridad (`enforceConsistency` en `lib/llm.ts`).
+- Ajuste al prompt de Gemini (`lib/llm.ts`): el campo `rationale` ahora pide
+  explícitamente tono llano y cálido, hablando de lo que la paciente
+  sentiría o no sentiría, sin jerga clínica ni de sistema — siguiendo el
+  tono de `docs/SENAL30_mockup.png` pantalla 2. Verificado: T1 ahora dice
+  "...debería notar que se levanta mucho menos al baño por las noches..." y
+  T2 dice "...no hay ningún cambio físico directo que vaya a notar que
+  mejora en 30 días...", ninguno usa palabras como "candidato" o
+  "clasificación".
+
+**Aceptación (T2, el caso duro)**: con `signal_status = 'no_credible_signal'`,
+el botón de inscribir está deshabilitado en la UI, y `POST
+/api/cases/[id]/enroll` devuelve 403 sin escribir nada, sin importar quién
+llame a la ruta — no hay forma, ni por UI ni por API, de que este caso
+termine `'available'`.
+
+**Hallazgo operativo importante — cuota gratuita de Gemini**: el modelo
+`gemini-3.6-flash` en el tier gratuito tiene un límite de **20 solicitudes
+por día por proyecto** (`GenerateRequestsPerDayPerProjectPerModel-FreeTier`).
+Se agotó hoy mismo durante las pruebas de este commit — T3 cayó en 429 y el
+sistema respondió correctamente con `has_credible_signal: false` (el
+fallback funcionó exactamente como debía), pero 20/día es muy poco margen
+para demos en vivo o para cuando haya más de un puñado de casos reales.
+Vale la pena que la usuaria decida si acepta el límite, prueba un modelo
+Gemini más barato/con más cuota gratuita, o activa facturación en ese
+proyecto de Google AI Studio antes de la entrega.
+
+## 2026-09-13 — `scripts/` se queda en el repo (decisión deliberada)
+
+`scripts/test-classification.ts` no estaba en el plan de commits del
+implementation prompt, pero se agregó a propósito para poder correr T1/T2/T3
+contra la API real de Gemini sin pasar por toda la UI — es evidencia
+reproducible del test plan (`docs/PACKET.md` sección 9), no un descuido.
+Confirmado con la usuaria que se queda en el repo público como referencia de
+regresión: no importa nada del código de producción, está excluido del
+`tsconfig.json` de la app, y no contiene ningún secreto (solo tres textos de
+ejemplo en español).
+
 ## 2026-09-13 — Commit 1 cerrado: deploy a Vercel + login probado
 
 `vercel link` creó el proyecto `senal30` en la cuenta de Vercel de la

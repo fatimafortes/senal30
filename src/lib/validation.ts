@@ -23,3 +23,20 @@ export const caseIntakeSchema = z.object({
 });
 
 export type CaseIntakeInput = z.infer<typeof caseIntakeSchema>;
+
+export const manufactureSignalSchema = z.object({
+  declared_signal: z.string().trim().min(1, "Requerido").max(200),
+  justification: z
+    .string()
+    .trim()
+    .min(10, "Explica con más detalle por qué se declara esta señal")
+    .max(1000, "Máximo 1000 caracteres"),
+});
+
+export type ManufactureSignalInput = z.infer<typeof manufactureSignalSchema>;
+
+export const markUnresolvedSchema = z.object({
+  note: z.string().trim().max(1000).optional().default(""),
+});
+
+export type MarkUnresolvedInput = z.infer<typeof markUnresolvedSchema>;
