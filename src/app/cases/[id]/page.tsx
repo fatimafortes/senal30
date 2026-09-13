@@ -57,9 +57,13 @@ export default async function CaseDetailPage({
   const classificationEvent = auditLog?.find(
     (e) => e.event === "baseline_classified"
   );
-  const rationale =
-    (classificationEvent?.payload as { rationale?: string } | null)
-      ?.rationale ?? "";
+  const classificationPayload = classificationEvent?.payload as {
+    rationale?: string;
+    provider_unavailable?: boolean;
+  } | null;
+  const rationale = classificationPayload?.rationale ?? "";
+  const providerWasUnavailable =
+    classificationPayload?.provider_unavailable === true;
   const alreadyEnrolled =
     auditLog?.some((e) => e.event === "case_enrolled") ?? false;
   const manufactureEvent = auditLog?.find(
@@ -74,120 +78,142 @@ export default async function CaseDetailPage({
     : 0;
 
   return (
-    <main className="min-h-screen bg-neutral-950 px-6 py-10 text-neutral-100">
+    <main className="min-h-screen bg-stone-100 px-6 py-10 text-neutral-900">
       <div className="mx-auto max-w-2xl">
-        <Link
-          href="/cases"
-          className="text-sm text-neutral-400 underline hover:text-neutral-200"
-        >
-          ← Casos
-        </Link>
-
-        <div className="mt-4 flex items-baseline justify-between">
-          <h1 className="text-xl font-semibold tracking-tight">
-            {caseRow.patient_alias}
-          </h1>
-          <span className="text-xs text-neutral-500">
-            {caseRow.detected_at}
-          </span>
-        </div>
-        {caseRow.is_seed && (
-          <span className="mt-1 inline-block rounded-full bg-sky-950 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-sky-300">
-            Datos inventados — caso de demostración
-          </span>
-        )}
-        <p className="mt-1 text-sm text-neutral-400">
-          {caseRow.detection_type} · {caseRow.detection_value} · costo del
-          siguiente paso: {AFFORDABILITY_LABELS[caseRow.affordability_status]}
-        </p>
-
-        {caseRow.signal_status === "no_credible_signal" && (
-          <RefusalCard
-            rationale={rationale}
-            rawText={baseline?.raw_text ?? ""}
-            symptomCount={symptomCount}
-            aiGenerated={baseline?.ai_labeled ?? true}
-          />
-        )}
-
-        {caseRow.signal_status === "available" && (
-          <div className="mt-6 rounded-lg border border-emerald-900 bg-emerald-950/40 p-5">
-            <h2 className="text-lg font-semibold text-emerald-300">
-              Señal de retorno disponible
-            </h2>
-            <p className="mt-2 text-sm text-emerald-100">
-              Señal declarada: <strong>{baseline?.declared_signal}</strong>
+        <div className="rounded border border-neutral-300 bg-white">
+          <div className="flex items-center justify-between border-b border-neutral-300 px-5 py-3">
+            <p className="text-xs font-semibold uppercase tracking-widest text-neutral-500">
+              SEÑAL 30 · caso
             </p>
-            {baseline?.ai_labeled && (
-              <div className="mt-3">
-                <AiDisclosure />
+            <Link
+              href="/cases"
+              className="text-xs text-neutral-500 underline hover:text-neutral-800"
+            >
+              ← Casos
+            </Link>
+          </div>
+
+          <div className="px-5 py-4">
+            <div className="flex items-baseline justify-between">
+              <h1 className="text-lg font-semibold tracking-tight">
+                {caseRow.patient_alias}
+              </h1>
+              <span className="text-xs text-neutral-500">
+                {caseRow.detected_at}
+              </span>
+            </div>
+            {caseRow.is_seed && (
+              <span className="mt-1 inline-block rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-sky-700">
+                Datos inventados — caso de demostración
+              </span>
+            )}
+            <p className="mt-2 text-2xl font-semibold tabular-nums">
+              {caseRow.detection_value}{" "}
+              <span className="text-sm font-normal text-neutral-500">
+                {caseRow.detection_type}
+              </span>
+            </p>
+            <p className="mt-1 text-sm text-neutral-500">
+              Costo del siguiente paso:{" "}
+              {AFFORDABILITY_LABELS[caseRow.affordability_status]}
+            </p>
+
+            {caseRow.signal_status === "no_credible_signal" && (
+              <RefusalCard
+                rationale={rationale}
+                rawText={baseline?.raw_text ?? ""}
+                symptomCount={symptomCount}
+                aiGenerated={
+                  (baseline?.ai_labeled ?? true) && !providerWasUnavailable
+                }
+                providerUnavailable={providerWasUnavailable}
+              />
+            )}
+
+            {caseRow.signal_status === "available" && (
+              <div className="mt-6 rounded border border-emerald-700 bg-emerald-50 p-5">
+                <h2 className="text-lg font-bold text-emerald-800">
+                  Señal de retorno disponible
+                </h2>
+                <p className="mt-2 text-sm text-emerald-900">
+                  Señal declarada: <strong>{baseline?.declared_signal}</strong>
+                </p>
+                {baseline?.ai_labeled && (
+                  <div className="mt-3">
+                    <AiDisclosure />
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
 
-        {caseRow.signal_status === "manufactured" && (
-          <div className="mt-6 rounded-lg border border-amber-900 bg-amber-950/30 p-5">
-            <h2 className="text-lg font-semibold text-amber-300">
-              Señal manufacturada por el owner
-            </h2>
-            <p className="mt-2 text-sm text-amber-100">
-              Señal declarada:{" "}
-              <strong>
-                {String(
-                  (manufactureEvent?.payload as { declared_signal?: string })
-                    ?.declared_signal ?? ""
-                )}
-              </strong>
-            </p>
-            <p className="mt-2 text-sm text-neutral-300">
-              Justificación:{" "}
-              {String(
-                (manufactureEvent?.payload as { justification?: string })
-                  ?.justification ?? ""
-              )}
-            </p>
-          </div>
-        )}
-
-        {caseRow.signal_status === "unresolved" && (
-          <div className="mt-6 rounded-lg border border-neutral-700 bg-neutral-900 p-5">
-            <h2 className="text-lg font-semibold text-neutral-200">
-              Caso registrado como no resuelto
-            </h2>
-            {Boolean(
-              (unresolvedEvent?.payload as { note?: string })?.note
-            ) && (
-              <p className="mt-2 text-sm text-neutral-300">
-                Nota:{" "}
-                {String(
-                  (unresolvedEvent?.payload as { note?: string })?.note
-                )}
-              </p>
+            {caseRow.signal_status === "manufactured" && (
+              <div className="mt-6 rounded border border-amber-600 bg-amber-50 p-5">
+                <h2 className="text-lg font-bold text-amber-800">
+                  Señal manufacturada por el owner
+                </h2>
+                <p className="mt-2 text-sm text-amber-900">
+                  Señal declarada:{" "}
+                  <strong>
+                    {String(
+                      (
+                        manufactureEvent?.payload as {
+                          declared_signal?: string;
+                        }
+                      )?.declared_signal ?? ""
+                    )}
+                  </strong>
+                </p>
+                <p className="mt-2 text-sm text-neutral-700">
+                  Justificación:{" "}
+                  {String(
+                    (manufactureEvent?.payload as { justification?: string })
+                      ?.justification ?? ""
+                  )}
+                </p>
+              </div>
             )}
-          </div>
-        )}
 
-        <CaseActions
-          caseId={caseRow.id}
-          signalStatus={caseRow.signal_status}
-          alreadyEnrolled={alreadyEnrolled}
-        />
+            {caseRow.signal_status === "unresolved" && (
+              <div className="mt-6 rounded border border-neutral-300 bg-neutral-50 p-5">
+                <h2 className="text-lg font-bold text-neutral-800">
+                  Caso registrado como no resuelto
+                </h2>
+                {Boolean(
+                  (unresolvedEvent?.payload as { note?: string })?.note
+                ) && (
+                  <p className="mt-2 text-sm text-neutral-700">
+                    Nota:{" "}
+                    {String(
+                      (unresolvedEvent?.payload as { note?: string })?.note
+                    )}
+                  </p>
+                )}
+              </div>
+            )}
 
-        {auditLog && auditLog.length > 0 && (
-          <div className="mt-10 border-t border-neutral-800 pt-4">
-            <h2 className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-              Bitácora
-            </h2>
-            <ul className="mt-2 space-y-1 text-xs text-neutral-500">
-              {auditLog.map((e, i) => (
-                <li key={i}>
-                  {new Date(e.created_at).toLocaleString("es-MX")} — {e.event}
-                </li>
-              ))}
-            </ul>
+            <CaseActions
+              caseId={caseRow.id}
+              signalStatus={caseRow.signal_status}
+              alreadyEnrolled={alreadyEnrolled}
+            />
           </div>
-        )}
+
+          {auditLog && auditLog.length > 0 && (
+            <div className="border-t border-neutral-200 px-5 py-4">
+              <h2 className="text-xs font-medium uppercase tracking-wide text-neutral-400">
+                Bitácora
+              </h2>
+              <ul className="mt-2 space-y-1 text-xs text-neutral-500">
+                {auditLog.map((e, i) => (
+                  <li key={i}>
+                    {new Date(e.created_at).toLocaleString("es-MX")} —{" "}
+                    {e.event}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       </div>
     </main>
   );
@@ -198,40 +224,47 @@ function RefusalCard({
   rawText,
   symptomCount,
   aiGenerated,
+  providerUnavailable,
 }: {
   rationale: string;
   rawText: string;
   symptomCount: number;
   aiGenerated: boolean;
+  providerUnavailable: boolean;
 }) {
   return (
-    <div className="mt-6 rounded-lg border-2 border-amber-600 bg-amber-950/40 p-6">
-      <h2 className="text-2xl font-bold text-amber-400">
-        SIN SEÑAL DE RETORNO CREÍBLE
+    <div className="mt-6 rounded border-2 border-amber-700 bg-amber-50 p-6">
+      <h2 className="text-2xl font-bold text-amber-900">
+        Sin señal de retorno creíble
       </h2>
-      <p className="mt-1 text-base font-medium text-amber-200">
+      <p className="mt-1 text-base font-medium text-amber-800">
         Este caso no se puede inscribir.
       </p>
 
-      {rationale && (
-        <>
-          <hr className="my-4 border-amber-800" />
-          <p className="text-sm text-amber-100">{rationale}</p>
-        </>
+      <hr className="my-4 border-amber-200" />
+
+      {providerUnavailable ? (
+        <p className="text-sm text-amber-900">
+          El servicio de clasificación no está disponible en este momento.
+          Este caso quedó marcado para revisión humana mientras tanto — no se
+          perdió, y no se puede inscribir hasta que alguien lo revise.
+        </p>
+      ) : (
+        rationale && <p className="text-sm text-amber-900">{rationale}</p>
       )}
 
       {rawText && (
-        <div className="mt-4 rounded-md bg-black/20 p-3">
-          <p className="text-xs uppercase tracking-wide text-amber-300">
+        <div className="mt-4 rounded border border-amber-200 bg-white p-3">
+          <p className="text-xs uppercase tracking-wide text-amber-700">
             Lo que dijo la paciente cuando le preguntaron cómo se siente
           </p>
-          <p className="mt-1 text-sm italic text-amber-50">
+          <p className="mt-1 text-sm italic text-neutral-800">
             &ldquo;{rawText}&rdquo;
           </p>
         </div>
       )}
 
-      <div className="mt-4 flex gap-6 text-sm text-amber-200">
+      <div className="mt-4 flex gap-6 text-sm text-amber-800">
         <span>Síntomas reversibles en 30 días: {symptomCount}</span>
       </div>
 

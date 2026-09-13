@@ -1,5 +1,76 @@
 # DECISIONS
 
+## 2026-09-13 — Bug: "No se pudo crear el caso" + rediseño al mockup
+
+**Bug encontrado**: al crear un caso real en producción, la usuaria recibió
+solo "No se pudo crear el caso." en rojo, sin más contexto.
+
+**Diagnóstico — causa real, no confirmada al 100%**: `vercel logs` no
+retiene ni transmite logs históricos en este plan/CLI ("No logs found" para
+la URL de producción y para el deployment específico, incluso segundos
+después del error) — no hay forma de recuperar por CLI la traza exacta de
+esa petición ya pasada. Por revisión de código: la clasificación de Gemini
+**nunca debería haber causado ese error** — `classifyBaselineSymptoms` ya
+atrapa cualquier fallo (red, 429, JSON inesperado) y regresa un resultado
+de rechazo sin lanzar excepción, así que aunque la cuota estuviera agotada
+el caso se debía seguir creando. Eso apunta a que el fallo real estaba en
+el `insert` a `senal30_cases` (RLS, un enum, o la migración 0002 corrida a
+medias) y no en Gemini — pero sin el log exacto esto queda como diagnóstico
+razonado, no confirmado. Si vuelve a pasar, ahora sí queda información real:
+ver más abajo.
+
+**Fix — instrumentación permanente** (`src/app/api/cases/route.ts`):
+- Todo el handler quedó envuelto en `try/catch`; cualquier excepción no
+  prevista ya no tumba la respuesta sin explicación.
+- Los errores de Postgres/PostgREST se loguean completos con
+  `console.error` (visibles en el dashboard de Vercel → Logs) y se traducen
+  a mensajes específicos por código (`23502` campo faltante, `42501` RLS,
+  `42703` columna inexistente → probable migración pendiente, etc.) en vez
+  de un texto genérico.
+- Los errores de validación ahora dicen qué campo falló
+  (`Revisa "raw_text": ...`) en lugar de "Datos inválidos."
+- El formulario (`/cases/new`) nunca borra lo que la usuaria escribió al
+  fallar — es un formulario no controlado, el navegador conserva los
+  valores; se agregó además manejo explícito de fallas de red sin perder el
+  texto.
+
+**Fix — el comportamiento de fondo que se pidió, independientemente de la
+causa**: se agregó `provider_unavailable: boolean` al resultado de
+`classifyBaselineSymptoms` (`src/lib/llm.ts`) para distinguir "el modelo
+revisó el texto y no encontró señal" de "el modelo no pudo responder". El
+caso **siempre se guarda** con `signal_status = no_credible_signal` en
+ambos casos (fail toward refusal, nunca hacia perder el caso), pero:
+- si el proveedor no respondió, la pantalla de rechazo dice explícitamente
+  "El servicio de clasificación no está disponible en este momento..." en
+  vez de inventar una razón clínica que nadie generó;
+- `baselines.ai_labeled` se guarda en `false` en ese caso, y la etiqueta de
+  IA no se muestra — no reclama contenido generado por un modelo que nunca
+  respondió;
+- el formulario de alta muestra el mismo aviso y un enlace directo al caso
+  recién creado en vez de redirigir de inmediato, para que la usuaria lo
+  vea antes de seguir.
+
+**Redeploy**: incluido en el mismo commit que el rediseño (ver abajo).
+
+## 2026-09-13 — Rediseño: alineado al mockup (`docs/SENAL30_mockup.png`)
+
+La UI anterior era un tema oscuro genérico — no correspondía al mockup
+aprobado, que es parte del argumento del producto (Nota de diseño del
+packet: "una tarjeta de inspección de control de calidad, no una app de
+salud... el único elemento visualmente fuerte de cada pantalla es el
+veredicto"). Rediseño en `/login`, `/cases`, `/cases/new`, `/cases/[id]`,
+`CaseActions`, `AiDisclosure`:
+- Fondo claro (`bg-stone-100`) con tarjetas blancas de borde delgado
+  (`border-neutral-300`), no dark mode.
+- Eyebrow uppercase "SEÑAL 30 · ..." en cada pantalla, como en el mockup.
+- Lista de casos: barra de color a la izquierda de cada fila según
+  `signal_status` (ámbar para sin señal / manufacturada, gris para el
+  resto) en vez de badges de colores planos; contador "N casos · M
+  requieren decisión" igual que la pantalla 1 del mockup.
+- La tarjeta de rechazo sigue siendo el único elemento visualmente fuerte:
+  borde grueso ámbar, título grande en negritas, todo lo demás en texto
+  normal.
+
 ## 2026-09-13 — Robustez de cuota: modelo lite + modo de demostración
 
 **Contexto**: el hallazgo del commit 3 (20 solicitudes/día en

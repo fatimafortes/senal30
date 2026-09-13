@@ -83,7 +83,7 @@ export function CaseActions({
               ? undefined
               : "No se puede inscribir sin una señal de retorno creíble."
           }
-          className="rounded-md bg-neutral-100 px-4 py-2 text-sm font-medium text-neutral-900 transition hover:bg-white disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-500"
+          className="rounded bg-neutral-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:bg-neutral-200 disabled:text-neutral-400"
         >
           {alreadyEnrolled ? "Caso inscrito" : "Inscribir caso"}
         </button>
@@ -96,8 +96,8 @@ export function CaseActions({
       </div>
 
       {signalStatus === "no_credible_signal" && (
-        <div className="rounded-md border border-neutral-800 p-4">
-          <p className="text-sm font-medium text-neutral-200">
+        <div className="rounded border border-neutral-300 bg-neutral-50 p-4">
+          <p className="text-sm font-medium text-neutral-700">
             El owner tiene dos caminos con este caso:
           </p>
           <div className="mt-3 flex flex-wrap gap-3">
@@ -106,7 +106,7 @@ export function CaseActions({
               onClick={() =>
                 setOpenForm(openForm === "manufacture" ? null : "manufacture")
               }
-              className="rounded-md bg-neutral-100 px-3 py-1.5 text-sm font-medium text-neutral-900 hover:bg-white"
+              className="rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
             >
               Declarar una señal
             </button>
@@ -115,7 +115,7 @@ export function CaseActions({
               onClick={() =>
                 setOpenForm(openForm === "unresolved" ? null : "unresolved")
               }
-              className="rounded-md border border-neutral-700 px-3 py-1.5 text-sm font-medium text-neutral-200 hover:bg-neutral-900"
+              className="rounded border border-neutral-400 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-white"
             >
               Registrar como no resuelto
             </button>
@@ -124,7 +124,7 @@ export function CaseActions({
           {openForm === "manufacture" && (
             <form onSubmit={handleManufacture} className="mt-4 space-y-3">
               <div>
-                <label className="block text-sm font-medium text-neutral-300">
+                <label className="block text-sm font-medium text-neutral-700">
                   Señal declarada
                 </label>
                 <input
@@ -132,11 +132,11 @@ export function CaseActions({
                   required
                   maxLength={200}
                   placeholder="Ej. seguimiento telefónico semanal"
-                  className="mt-1 w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
+                  className="mt-1 w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-300">
+                <label className="block text-sm font-medium text-neutral-700">
                   Justificación (obligatoria)
                 </label>
                 <textarea
@@ -146,13 +146,13 @@ export function CaseActions({
                   maxLength={1000}
                   rows={3}
                   placeholder="Explica por qué se declara esta señal manualmente."
-                  className="mt-1 w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
+                  className="mt-1 w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900"
                 />
               </div>
               <button
                 type="submit"
                 disabled={busy}
-                className="rounded-md bg-neutral-100 px-3 py-1.5 text-sm font-medium text-neutral-900 hover:bg-white disabled:opacity-60"
+                className="rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-60"
               >
                 Confirmar señal manufacturada
               </button>
@@ -162,7 +162,7 @@ export function CaseActions({
           {openForm === "unresolved" && (
             <form onSubmit={handleUnresolved} className="mt-4 space-y-3">
               <div>
-                <label className="block text-sm font-medium text-neutral-300">
+                <label className="block text-sm font-medium text-neutral-700">
                   Nota (opcional)
                 </label>
                 <textarea
@@ -170,13 +170,13 @@ export function CaseActions({
                   maxLength={1000}
                   rows={3}
                   placeholder="Contexto adicional, si aplica."
-                  className="mt-1 w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm text-neutral-100"
+                  className="mt-1 w-full rounded border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900"
                 />
               </div>
               <button
                 type="submit"
                 disabled={busy}
-                className="rounded-md border border-neutral-700 px-3 py-1.5 text-sm font-medium text-neutral-200 hover:bg-neutral-900 disabled:opacity-60"
+                className="rounded border border-neutral-400 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-white disabled:opacity-60"
               >
                 Confirmar registro sin resolver
               </button>
@@ -186,7 +186,7 @@ export function CaseActions({
       )}
 
       {error && (
-        <p className="text-sm text-red-400" role="alert">
+        <p className="text-sm text-red-700" role="alert">
           {error}
         </p>
       )}

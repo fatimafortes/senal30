@@ -25,14 +25,28 @@ const classificationSchema = z.object({
 
 export type BaselineClassification = z.infer<typeof classificationSchema>;
 
-// Falla siempre hacia el rechazo, nunca hacia la inscripción automática.
-const REFUSAL_FALLBACK: BaselineClassification = {
-  symptoms: [],
-  has_credible_signal: false,
-  suggested_primary_signal: null,
-  rationale:
-    "No se pudo clasificar el texto automáticamente — caso marcado para revisión humana.",
+// `provider_unavailable: true` distingue "el modelo revisó el texto y
+// concluyó que no hay señal" de "el modelo no pudo responder (cuota, red,
+// forma inesperada) y por eso caemos al rechazo por defecto". Ambos casos
+// fallan hacia has_credible_signal: false — nunca hacia inscribir — pero la
+// pantalla le debe decir a la usuaria cuál de los dos pasó.
+export type ClassificationResult = BaselineClassification & {
+  provider_unavailable: boolean;
 };
+
+function providerUnavailable(reason: string): ClassificationResult {
+  return {
+    symptoms: [],
+    has_credible_signal: false,
+    suggested_primary_signal: null,
+    rationale: reason,
+    provider_unavailable: true,
+  };
+}
+
+const REFUSAL_FALLBACK = providerUnavailable(
+  "El servicio de clasificación no está disponible en este momento. El caso se guardó marcado para revisión humana."
+);
 
 const SYSTEM_PROMPT = `Eres un clasificador clínico auxiliar. Recibes una descripción en texto libre, en español y en las palabras de la propia persona, de cómo se siente alguien recién diagnosticado con hiperglucemia.
 
@@ -59,11 +73,13 @@ function stripCodeFences(text: string): string {
  * texto de síntomas, ya truncado a MAX_INPUT_LENGTH.
  *
  * Cualquier fallo (red, parseo, forma inesperada) cae en REFUSAL_FALLBACK:
- * has_credible_signal siempre en false, marcado para revisión humana.
+ * has_credible_signal siempre en false, marcado para revisión humana, y
+ * provider_unavailable en true para que la pantalla lo distinga de un "no"
+ * real del modelo.
  */
 export async function classifyBaselineSymptoms(
   rawText: string
-): Promise<BaselineClassification> {
+): Promise<ClassificationResult> {
   const cappedText = rawText.slice(0, MAX_INPUT_LENGTH);
 
   const apiKey = process.env.GEMINI_API_KEY;
@@ -139,9 +155,11 @@ export async function classifyBaselineSymptoms(
 // Red de seguridad además del prompt: si no hay síntomas concretos o no hay
 // señal primaria declarada, la señal no puede ser creíble, sin importar lo
 // que haya dicho el modelo. El caso más duro (T2) depende de esto.
+// A diferencia de REFUSAL_FALLBACK, esto SÍ es una respuesta real del
+// modelo — provider_unavailable queda en false.
 function enforceConsistency(
   classification: BaselineClassification
-): BaselineClassification {
+): ClassificationResult {
   const hasConcreteSignal =
     classification.symptoms.length > 0 &&
     classification.suggested_primary_signal !== null &&
@@ -152,10 +170,11 @@ function enforceConsistency(
       ...classification,
       has_credible_signal: false,
       suggested_primary_signal: null,
+      provider_unavailable: false,
     };
   }
 
-  return classification;
+  return { ...classification, provider_unavailable: false };
 }
 
 function extractText(data: unknown): unknown {

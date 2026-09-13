@@ -21,7 +21,7 @@ export function SeedButton() {
       type="button"
       onClick={handleClick}
       disabled={busy}
-      className="rounded-md border border-neutral-700 px-3 py-1.5 text-sm font-medium text-neutral-300 hover:bg-neutral-900 disabled:opacity-60"
+      className="rounded border border-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 disabled:opacity-60"
     >
       {busy ? "Cargando…" : "Cargar casos de demostración"}
     </button>

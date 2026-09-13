@@ -3,7 +3,7 @@
 // sin nombrar al proveedor.
 export function AiDisclosure() {
   return (
-    <p className="rounded-md border border-dashed border-neutral-700 px-3 py-2 text-xs text-neutral-400">
+    <p className="rounded border border-dashed border-neutral-300 bg-neutral-50 px-3 py-2 text-xs text-neutral-500">
       Contenido generado por IA — revisar antes de actuar.
     </p>
   );
