@@ -91,10 +91,10 @@ export default async function CasesPage() {
 
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
             <p className="text-sm text-neutral-700">
-              {cases?.length ?? 0} casos
+              {cases?.length ?? 0} {(cases?.length ?? 0) === 1 ? "caso" : "casos"}
               {pending > 0 && (
                 <span className="ml-2 font-medium text-amber-700">
-                  {pending} requieren decisión
+                  {pending} {pending === 1 ? "requiere" : "requieren"} decisión
                 </span>
               )}
             </p>
