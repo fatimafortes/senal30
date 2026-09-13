@@ -10,37 +10,30 @@ const SIGNAL_LABELS: Record<string, string> = {
   unresolved: "Sin resolver",
 };
 
-const SIGNAL_BAR: Record<string, string> = {
-  available: "border-l-neutral-400",
-  no_credible_signal: "border-l-amber-600",
-  manufactured: "border-l-amber-500",
-  unresolved: "border-l-neutral-400",
-};
-
-const SIGNAL_TEXT: Record<string, string> = {
-  available: "text-neutral-600",
-  no_credible_signal: "text-amber-700",
-  manufactured: "text-amber-700",
-  unresolved: "text-neutral-600",
-};
-
 // docs/PACKET.md, pantalla 1: "los casos sin señal de retorno suben al
 // principio de la lista" — no es cosmético, es el producto negándose a
-// enterrar sus propias fallas. Orden: sin señal, luego sin resolver, luego
-// manufacturada, disponible al final.
-const SIGNAL_SORT_PRIORITY: Record<string, number> = {
-  no_credible_signal: 0,
-  unresolved: 1,
-  manufactured: 2,
-  available: 3,
-};
+// enterrar sus propias fallas. Una señal que falló y sigue sin confirmar
+// es la misma clase de urgencia, así que sube junto con ellos. Orden:
+// (sin señal | señal falló sin confirmar) → sin resolver → manufacturada →
+// disponible.
+function sortPriority(signalStatus: string, isEscalation: boolean): number {
+  if (signalStatus === "no_credible_signal" || isEscalation) return 0;
+  if (signalStatus === "unresolved") return 1;
+  if (signalStatus === "manufactured") return 2;
+  return 3;
+}
 
 // "Requiere decisión" = casos donde el owner todavía tiene que actuar o
 // sostener una decisión ya tomada bajo escrutinio: sin señal (nunca se
-// decidió) y señal manufacturada (una excepción manual, no una señal
-// orgánica). "Sin resolver" ya es un cierre, no una decisión pendiente.
-function requiresDecision(signalStatus: string): boolean {
-  return signalStatus === "no_credible_signal" || signalStatus === "manufactured";
+// decidió), señal manufacturada (excepción manual), y señal que falló y
+// sigue sin confirmar. "Sin resolver" ya es un cierre, no una decisión
+// pendiente.
+function requiresDecision(signalStatus: string, isEscalation: boolean): boolean {
+  return (
+    signalStatus === "no_credible_signal" ||
+    signalStatus === "manufactured" ||
+    isEscalation
+  );
 }
 
 export default async function CasesPage() {
@@ -63,11 +56,29 @@ export default async function CasesPage() {
     console.error("[cases] failed to load senal30_cases", casesError);
   }
 
+  const { data: checkpoints, error: checkpointsError } = await supabase
+    .from("senal30_checkpoints")
+    .select("case_id, verdict, confirmed_by_owner_id")
+    .eq("day", 30);
+
+  if (checkpointsError) {
+    console.error(
+      "[cases] failed to load senal30_checkpoints",
+      checkpointsError
+    );
+  }
+
+  const escalatedCaseIds = new Set(
+    (checkpoints ?? [])
+      .filter((cp) => cp.verdict === "failed" && !cp.confirmed_by_owner_id)
+      .map((cp) => cp.case_id)
+  );
+
   const sortedCases = cases
     ? [...cases].sort((a, b) => {
         const priorityDiff =
-          (SIGNAL_SORT_PRIORITY[a.signal_status] ?? 99) -
-          (SIGNAL_SORT_PRIORITY[b.signal_status] ?? 99);
+          sortPriority(a.signal_status, escalatedCaseIds.has(a.id)) -
+          sortPriority(b.signal_status, escalatedCaseIds.has(b.id));
         if (priorityDiff !== 0) return priorityDiff;
         return (
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -76,7 +87,9 @@ export default async function CasesPage() {
     : null;
 
   const pending =
-    cases?.filter((c) => requiresDecision(c.signal_status)).length ?? 0;
+    cases?.filter((c) =>
+      requiresDecision(c.signal_status, escalatedCaseIds.has(c.id))
+    ).length ?? 0;
 
   return (
     <main className="min-h-screen bg-stone-100 px-6 py-10 text-neutral-900">
@@ -126,36 +139,55 @@ export default async function CasesPage() {
             </p>
           ) : (
             <ul className="divide-y divide-neutral-200 border-t border-neutral-300">
-              {sortedCases.map((c) => (
-                <li
-                  key={c.id}
-                  className={`border-l-4 ${SIGNAL_BAR[c.signal_status] ?? "border-l-neutral-300"}`}
-                >
-                  <Link
-                    href={`/cases/${c.id}`}
-                    className="flex items-center justify-between px-4 py-3 hover:bg-neutral-50"
+              {sortedCases.map((c) => {
+                const isEscalation = escalatedCaseIds.has(c.id);
+                return (
+                  <li
+                    key={c.id}
+                    className={`border-l-4 ${
+                      isEscalation
+                        ? "border-l-red-600"
+                        : c.signal_status === "no_credible_signal" ||
+                            c.signal_status === "manufactured"
+                          ? "border-l-amber-600"
+                          : "border-l-neutral-400"
+                    }`}
                   >
-                    <div>
-                      <p className="text-sm font-medium text-neutral-900">
-                        {c.patient_alias}
-                        {c.is_seed && (
-                          <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-sky-700">
-                            Datos inventados
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-xs text-neutral-500">
-                        {c.detection_type} · {c.detection_value}
-                      </p>
-                    </div>
-                    <span
-                      className={`text-xs font-semibold uppercase tracking-wide ${SIGNAL_TEXT[c.signal_status] ?? "text-neutral-500"}`}
+                    <Link
+                      href={`/cases/${c.id}`}
+                      className="flex items-center justify-between px-4 py-3 hover:bg-neutral-50"
                     >
-                      {SIGNAL_LABELS[c.signal_status] ?? c.signal_status}
-                    </span>
-                  </Link>
-                </li>
-              ))}
+                      <div>
+                        <p className="text-sm font-medium text-neutral-900">
+                          {c.patient_alias}
+                          {c.is_seed && (
+                            <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-sky-700">
+                              Datos inventados
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-xs text-neutral-500">
+                          {c.detection_type} · {c.detection_value}
+                        </p>
+                      </div>
+                      <span
+                        className={`text-xs font-semibold uppercase tracking-wide ${
+                          isEscalation
+                            ? "text-red-700"
+                            : c.signal_status === "no_credible_signal" ||
+                                c.signal_status === "manufactured"
+                              ? "text-amber-700"
+                              : "text-neutral-600"
+                        }`}
+                      >
+                        {isEscalation
+                          ? "Señal falló — sin confirmar"
+                          : (SIGNAL_LABELS[c.signal_status] ?? c.signal_status)}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

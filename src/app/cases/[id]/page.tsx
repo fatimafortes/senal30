@@ -91,7 +91,7 @@ export default async function CaseDetailPage({
 
   const { data: checkpoint } = await supabase
     .from("senal30_checkpoints")
-    .select("verdict, ai_rationale, responses")
+    .select("verdict, ai_rationale, responses, confirmed_by_owner_id, confirmed_at")
     .eq("case_id", id)
     .eq("day", 30)
     .order("created_at", { ascending: false })
@@ -104,6 +104,23 @@ export default async function CaseDetailPage({
   const comparisonProviderUnavailable =
     (comparisonEvent?.payload as { provider_unavailable?: boolean } | null)
       ?.provider_unavailable === true;
+
+  const confirmationAuditEvent = auditLog?.find(
+    (e) =>
+      e.event === "checkpoint_confirmed" || e.event === "checkpoint_overridden"
+  );
+  const confirmationEvent = confirmationAuditEvent
+    ? {
+        event: confirmationAuditEvent.event as
+          | "checkpoint_confirmed"
+          | "checkpoint_overridden",
+        ...(confirmationAuditEvent.payload as {
+          verdict: "confirmed" | "failed" | "not_scalable";
+          original_verdict: "confirmed" | "failed" | "not_scalable" | null;
+          reason: string | null;
+        }),
+      }
+    : null;
 
   const symptomCount = Array.isArray(baseline?.classified_symptoms)
     ? baseline.classified_symptoms.length
@@ -235,6 +252,7 @@ export default async function CaseDetailPage({
               simulatedDay={caseRow.simulated_day}
               checkpoint={checkpoint}
               comparisonProviderUnavailable={comparisonProviderUnavailable}
+              confirmationEvent={confirmationEvent}
             />
           </div>
 

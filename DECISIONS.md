@@ -1,5 +1,78 @@
 # DECISIONS
 
+## 2026-09-13 — Commit 5: confirmación humana y auditoría
+
+**Hallazgo antes de escribir código — no es un override, es un hueco que se
+cerró**: `NEXT_PUBLIC_SUPABASE_ANON_KEY` es pública por diseño (protegida
+por RLS), lo que significa que cualquier usuario técnico podría llamar
+directo a la API REST de Supabase con su propia sesión, sin pasar por
+nuestras rutas de Next.js. La policy RLS de `senal30_checkpoints`
+(migración 0001) verifica que el checkpoint pertenezca a un caso del
+usuario, pero no restringe qué columnas puede escribir ni con qué valores
+— en teoría alguien podría escribir `confirmed_by_owner_id` con cualquier
+valor y saltarse la razón obligatoria de una corrección, sin tocar
+nuestro código en absoluto.
+
+**Fix — `0003_senal30_protect_checkpoint_confirmation.sql`** (aditivo,
+solo agrega una función y un trigger sobre `senal30_checkpoints`, nada
+destructivo, no toca ninguna otra tabla): un trigger `before insert or
+update` que (1) hace inmutable un checkpoint ya confirmado — ni el
+veredicto, ni la razón, ni quién lo confirmó pueden cambiar después por
+ninguna vía — y (2) exige que `confirmed_by_owner_id` sea siempre
+`auth.uid()`, nunca otro usuario. Esto no cambia ningún comportamiento
+legítimo de la app; solo hace imposible el atajo que encontré, sin
+importar por dónde se intente.
+
+**`POST /api/cases/[id]/checkpoint/confirm`** — la única forma de que un
+veredicto de día 30 sea final:
+- Body: `{ verdict, override_reason? }`. `confirmed_by_owner_id` y
+  `confirmed_at` los pone el servidor a partir de la sesión — nunca se
+  aceptan del cliente.
+- Si el veredicto elegido es igual al borrador que ya existía, es un
+  "Confirmar" simple, sin razón.
+- Si es distinto al borrador (o no había borrador porque el proveedor
+  falló al comparar), es una corrección: la razón es obligatoria (mínimo
+  10 caracteres) y se guarda en `senal30_audit_log`
+  (`checkpoint_overridden`, con `original_verdict` y `reason`).
+- Un checkpoint ya confirmado devuelve 409 — no se puede reconfirmar ni
+  recorregir.
+- `not_scalable` también requiere confirmación, igual que `confirmed` y
+  `failed` — la Condición 2 ("la IA nunca cierra un caso") no hace
+  excepción para ese veredicto, aunque el diagrama del packet lo muestre
+  yendo directo a la bitácora.
+
+**Bitácora completa**: se revisó cada transición de estado del caso contra
+`senal30_audit_log` — `case_created`, `baseline_classified`,
+`case_enrolled`, `signal_manufactured`, `marked_unresolved`,
+`day_30_reached`, `checkpoint_compared`, y ahora `checkpoint_confirmed` /
+`checkpoint_overridden`. Todas ya se escriben y la bitácora en
+`/cases/[id]` ya las muestra todas (no hubo que agregar nada ahí, solo
+verificar que ningún camino nuevo se hubiera quedado sin loguear).
+
+**`/cases` — escalaciones al principio**: un caso con checkpoint
+`verdict = 'failed'` y `confirmed_by_owner_id` nulo ahora sube al mismo
+nivel de prioridad que los casos sin señal (antes de sin resolver,
+manufacturada y disponible). También extendí el contador "requiere
+decisión" para incluir estas escalaciones — no me lo pediste
+explícitamente para el contador, solo para el orden, pero una señal que
+falló y sigue sin confirmar es exactamente el tipo de cosa que ese
+contador existe para contar; dime si prefieres que el contador se quede
+sin tocar.
+
+**T6 — probado por API, no solo por UI**: `POST` sin sesión a
+`/api/cases/[id]/checkpoint/confirm` en producción devuelve 401 (abajo).
+La garantía completa de que "no hay cierre sin confirmación" descansa en
+dos capas independientes: la ruta (deriva `confirmed_by_owner_id` de la
+sesión, exige razón para corregir, rechaza re-confirmar) y el trigger de
+base de datos (inmutabilidad + no se puede confirmar como otro usuario).
+No pude probar con una sesión autenticada real posteando payloads
+maliciosos (necesitaría tu cookie de sesión) — si quieres esa prueba más
+fuerte, dime y armamos un curl con tu sesión, o lo verificas tú mismo
+desde las devtools del navegador.
+
+**Sin overrides ni atajos agregados** — todo lo de arriba restringe, nunca
+abre una puerta nueva.
+
 ## 2026-09-13 — Commit 4: el loop de 30 días
 
 **Alcance**: limitado a día 30 (preguntas + comparación + veredicto), tal

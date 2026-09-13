@@ -48,3 +48,19 @@ export const checkpointAnswersSchema = z.object({
 });
 
 export type CheckpointAnswersInput = z.infer<typeof checkpointAnswersSchema>;
+
+export const VERDICTS = ["confirmed", "failed", "not_scalable"] as const;
+
+export const checkpointConfirmSchema = z.object({
+  verdict: z.enum(VERDICTS),
+  // Obligatoria solo cuando se corrige el veredicto que ya existía — la
+  // ruta decide eso comparándolo contra el veredicto guardado, porque acá
+  // no sabemos cuál era.
+  override_reason: z
+    .string()
+    .trim()
+    .max(1000, "Máximo 1000 caracteres")
+    .optional(),
+});
+
+export type CheckpointConfirmInput = z.infer<typeof checkpointConfirmSchema>;
