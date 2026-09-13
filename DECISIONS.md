@@ -5,19 +5,35 @@
 **Bug encontrado**: al crear un caso real en producción, la usuaria recibió
 solo "No se pudo crear el caso." en rojo, sin más contexto.
 
-**Diagnóstico — causa real, no confirmada al 100%**: `vercel logs` no
-retiene ni transmite logs históricos en este plan/CLI ("No logs found" para
-la URL de producción y para el deployment específico, incluso segundos
-después del error) — no hay forma de recuperar por CLI la traza exacta de
-esa petición ya pasada. Por revisión de código: la clasificación de Gemini
-**nunca debería haber causado ese error** — `classifyBaselineSymptoms` ya
-atrapa cualquier fallo (red, 429, JSON inesperado) y regresa un resultado
-de rechazo sin lanzar excepción, así que aunque la cuota estuviera agotada
-el caso se debía seguir creando. Eso apunta a que el fallo real estaba en
-el `insert` a `senal30_cases` (RLS, un enum, o la migración 0002 corrida a
-medias) y no en Gemini — pero sin el log exacto esto queda como diagnóstico
-razonado, no confirmado. Si vuelve a pasar, ahora sí queda información real:
-ver más abajo.
+**Causa confirmada** (2026-09-13, tras intentar correr `0002_senal30_add_seed_flag.sql`
+y recibir `relation "senal30_cases" does not exist"`): **`0001_senal30_init.sql`
+nunca se había corrido.** Quedó pendiente desde el commit 1, cuando la
+sesión se desvió a resolver el cambio de proveedor a Gemini, y nadie volvió
+a confirmar que se hubiera ejecutado antes de dar por cerrado ese commit.
+Ninguna tabla `senal30_*` existía — ni siquiera `senal30_cases` — así que
+cualquier `insert` fallaba desde el principio. **No era la cuota de
+Gemini**: la sospecha original era razonable (justo veníamos de encontrar
+el límite de 20/día) pero incorrecta.
+
+Esto también explica algo que pasó desapercibido antes: cuando se probó el
+login por primera vez y `/cases` mostró "Todavía no hay casos", esa lectura
+tampoco revisaba si la consulta a Supabase regresaba un error — con la
+tabla inexistente, un error real se veía idéntico a una lista vacía. Se
+corrigió de una vez (ver commit de este mismo día): `/cases` y
+`/cases/[id]` ahora revisan el `error` de cada consulta y muestran un
+aviso explícito en vez de una lista vacía silenciosa cuando la lectura
+falla.
+
+**Fix del proceso**: antes de dar por cerrado un commit que depende de una
+migración, confirmar explícitamente que se corrió — no asumirlo porque
+otra parte de la app (como el login) funcionó.
+
+**Fix de código**: `/cases` y `/cases/[id]` ahora revisan el `error` de
+cada lectura a Supabase. `/cases` muestra un aviso rojo explícito en vez de
+"Todavía no hay casos." cuando la consulta falla. `/cases/[id]` distingue
+`PGRST116` (no existe esa fila — 404 real) de cualquier otro error (tabla
+inexistente, RLS, etc.), que ahora muestra un aviso de "no se pudo cargar"
+en vez de disfrazarse de 404. Ambos casos quedan logueados server-side.
 
 **Fix — instrumentación permanente** (`src/app/api/cases/route.ts`):
 - Todo el handler quedó envuelto en `try/catch`; cualquier excepción no

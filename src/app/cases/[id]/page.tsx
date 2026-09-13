@@ -26,13 +26,28 @@ export default async function CaseDetailPage({
     redirect("/login");
   }
 
-  const { data: caseRow } = await supabase
+  const { data: caseRow, error: caseError } = await supabase
     .from("senal30_cases")
     .select(
       "id, patient_alias, detection_type, detection_value, detected_at, affordability_status, signal_status, is_seed, created_at"
     )
     .eq("id", id)
     .single();
+
+  // PGRST116 = "no rows" (single() strictness) — un 404 real. Cualquier
+  // otro error (tabla inexistente, RLS, etc.) es un problema de la base,
+  // no un caso que no existe, y no se debe disfrazar de 404.
+  if (caseError && caseError.code !== "PGRST116") {
+    console.error("[cases/id] failed to load senal30_cases", caseError);
+    return (
+      <main className="min-h-screen bg-stone-100 px-6 py-10 text-neutral-900">
+        <div className="mx-auto max-w-2xl rounded border border-red-300 bg-red-50 p-6 text-sm text-red-800">
+          No se pudo cargar este caso. Puede que falte correr una migración
+          pendiente en la base de datos — revisa los logs del servidor.
+        </div>
+      </main>
+    );
+  }
 
   if (!caseRow) {
     notFound();

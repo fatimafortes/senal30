@@ -34,12 +34,16 @@ export default async function CasesPage() {
     redirect("/login");
   }
 
-  const { data: cases } = await supabase
+  const { data: cases, error: casesError } = await supabase
     .from("senal30_cases")
     .select(
       "id, patient_alias, detection_type, detection_value, signal_status, is_seed, created_at"
     )
     .order("created_at", { ascending: false });
+
+  if (casesError) {
+    console.error("[cases] failed to load senal30_cases", casesError);
+  }
 
   const pending =
     cases?.filter((c) => c.signal_status === "no_credible_signal").length ?? 0;
@@ -80,7 +84,13 @@ export default async function CasesPage() {
             </div>
           </div>
 
-          {!cases || cases.length === 0 ? (
+          {casesError ? (
+            <p className="px-5 py-6 text-sm text-red-700">
+              No se pudieron cargar los casos. Puede que falte correr una
+              migración pendiente en la base de datos — revisa los logs del
+              servidor.
+            </p>
+          ) : !cases || cases.length === 0 ? (
             <p className="px-5 py-6 text-sm text-neutral-500">
               Todavía no hay casos.
             </p>
