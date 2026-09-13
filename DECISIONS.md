@@ -1,5 +1,25 @@
 # DECISIONS
 
+## 2026-09-13 — Orden de la lista y contador de "requiere decisión"
+
+Dos desvíos del packet en `/cases`, señalados por la usuaria tras cargar
+los casos de demostración:
+
+1. **Orden**: la lista ordenaba por `created_at`, así que el caso sin
+   señal (M.R.) quedaba hasta abajo. `docs/PACKET.md` pantalla 1 es
+   explícito: "los casos sin señal de retorno suben al principio de la
+   lista" — no es cosmético, es el producto negándose a enterrar sus
+   propias fallas. Orden nuevo (`src/app/cases/page.tsx`): sin señal →
+   sin resolver → manufacturada → disponible, con `created_at` desc como
+   desempate dentro de cada grupo. El orden se calcula en la app, no en la
+   consulta SQL (el enum de Postgres no está declarado en este orden).
+
+2. **Contador**: "1 requieren decisión" solo contaba `no_credible_signal`,
+   dejando fuera los casos con señal manufacturada — que siguen siendo una
+   excepción manual bajo escrutinio, no una señal orgánica resuelta. Ahora
+   cuenta `no_credible_signal` + `manufactured`. `unresolved` no cuenta:
+   ya es un cierre, no una decisión pendiente.
+
 ## 2026-09-13 — Bug: "No se pudo crear el caso" + rediseño al mockup
 
 **Bug encontrado**: al crear un caso real en producción, la usuaria recibió
