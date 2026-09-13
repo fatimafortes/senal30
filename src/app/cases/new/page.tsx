@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { FictionalDataNotice } from "@/components/FictionalDataNotice";
 
 const AFFORDABILITY_OPTIONS: { value: string; label: string }[] = [
   { value: "covered", label: "Cubierto" },
@@ -83,6 +84,10 @@ export default function NewCasePage() {
         <p className="mt-1 text-sm text-neutral-500">
           Detección positiva — línea base en las palabras de la paciente.
         </p>
+
+        <div className="mt-3">
+          <FictionalDataNotice />
+        </div>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-5">
           <Field label="Alias de la paciente" name="patient_alias" required />

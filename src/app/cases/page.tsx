@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { SeedButton } from "./SeedButton";
+import { FictionalDataNotice } from "@/components/FictionalDataNotice";
 
 const SIGNAL_LABELS: Record<string, string> = {
   available: "Señal disponible",
@@ -100,6 +101,10 @@ export default async function CasesPage() {
               SEÑAL 30 · casos abiertos
             </p>
             <p className="text-xs text-neutral-500">{user.email}</p>
+          </div>
+
+          <div className="px-5 pt-3">
+            <FictionalDataNotice />
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">

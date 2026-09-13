@@ -1,5 +1,59 @@
 # DECISIONS
 
+## 2026-09-13 — T6 con sesión real: fuera de alcance por tiempo, y por qué no hace falta
+
+Se armó el procedimiento para probar T6 con una cookie de sesión real
+(PATCH directo a la API REST de Supabase, sin pasar por nuestra ruta,
+intentando poner `confirmed_by_owner_id` como otro usuario o modificar un
+checkpoint ya confirmado). Se dejó fuera de alcance por tiempo — no se
+llegó a correr.
+
+**Por qué el trigger la hace redundante, no solo "también válida"**: T6
+pregunta si un caso puede llegar a un estado cerrado sin confirmación del
+owner, **sin importar la vía**. La prueba a nivel de ruta (401 sin sesión)
+solo cubre una vía: nuestro propio código en `/api/cases/[id]/checkpoint/confirm`.
+El trigger de `0003_senal30_protect_checkpoint_confirmation.sql`
+(`before insert or update` sobre `senal30_checkpoints`) actúa en la capa
+de datos, por debajo de cualquier vía posible de escritura — nuestra ruta,
+una llamada directa a la API REST de Supabase, o cualquier código futuro
+que alguien agregue. Rechaza la escritura (`raise exception`) si
+`confirmed_by_owner_id` no es `auth.uid()`, o si se intenta tocar un
+checkpoint que ya tiene `confirmed_by_owner_id`. Esa garantía no depende
+de qué ruta se use para escribir — es estructural, se cumple por
+construcción. La prueba con cookie real habría confirmado empíricamente
+lo mismo que el trigger ya garantiza por diseño; queda como pendiente
+opcional si se quiere la evidencia empírica además de la garantía
+estructural, pero no es necesaria para sostener la afirmación de T6.
+
+## 2026-09-13 — Aviso permanente de datos ficticios (piso de seguridad #5)
+
+**Encontrado**: los casos creados a mano durante las pruebas (p. ej.
+"Roberto", "Maria") no llevan ninguna etiqueta de datos inventados —
+solo los casos cargados por "Cargar casos de demostración"
+(`is_seed = true`) la tienen. El piso de seguridad de
+`docs/IMPLEMENTATION_PROMPT.md` (#5) dice "All seed data invented and
+visibly labeled as fictional. No real personal data anywhere" — el
+principio de fondo (nunca datos reales) aplica a cualquier caso en el
+sistema, no solo a los precargados.
+
+**Por qué no se etiquetó cada caso individualmente como `is_seed`**:
+`is_seed` significa específicamente "caso de demostración precargado con
+clasificación ya escrita a mano, sin pasar por Gemini" — mezclar ese
+significado con "caso real de prueba que sí pasó por la clasificación
+real" sería confuso y falso en ambos sentidos. En vez de eso, se agregó
+un aviso permanente, visible en cada pantalla donde se ve o se captura un
+caso:
+- `/cases`: banner fijo arriba de la lista — "Todos los datos en este
+  sistema son ficticios. Este es un proyecto escolar; nunca ingreses
+  información real de una paciente."
+- `/cases/new`: el mismo aviso, justo donde se escribe el texto de
+  síntomas — es el punto real donde alguien podría escribir un dato real
+  por accidente.
+
+Esto cubre el caso general (cualquier dato en el sistema es inventado)
+sin inventar una etiqueta por caso que no se puede verificar
+automáticamente — solo la usuaria sabe si lo que escribió es ficticio.
+
 ## 2026-09-13 — Commit 5: confirmación humana y auditoría
 
 **Hallazgo antes de escribir código — no es un override, es un hueco que se
