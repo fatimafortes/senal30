@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { SeedButton } from "./SeedButton";
 
 const SIGNAL_LABELS: Record<string, string> = {
   available: "Señal disponible",
@@ -22,7 +23,7 @@ export default async function CasesPage() {
   const { data: cases } = await supabase
     .from("senal30_cases")
     .select(
-      "id, patient_alias, detection_type, detection_value, signal_status, created_at"
+      "id, patient_alias, detection_type, detection_value, signal_status, is_seed, created_at"
     )
     .order("created_at", { ascending: false });
 
@@ -35,6 +36,7 @@ export default async function CasesPage() {
             <p className="text-sm text-neutral-400">{user.email}</p>
           </div>
           <div className="flex items-center gap-4">
+            <SeedButton />
             <Link
               href="/cases/new"
               className="rounded-md bg-neutral-100 px-3 py-1.5 text-sm font-medium text-neutral-900 hover:bg-white"
@@ -48,6 +50,10 @@ export default async function CasesPage() {
             </form>
           </div>
         </div>
+        <p className="mt-2 text-xs text-neutral-500">
+          &ldquo;Cargar casos de demostración&rdquo; agrega datos inventados,
+          ya clasificados, que no consumen la cuota de la API.
+        </p>
 
         {!cases || cases.length === 0 ? (
           <p className="mt-6 text-sm text-neutral-400">
@@ -62,7 +68,14 @@ export default async function CasesPage() {
                   className="flex items-center justify-between px-4 py-3 hover:bg-neutral-900"
                 >
                   <div>
-                    <p className="text-sm font-medium">{c.patient_alias}</p>
+                    <p className="text-sm font-medium">
+                      {c.patient_alias}
+                      {c.is_seed && (
+                        <span className="ml-2 rounded-full bg-sky-950 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-sky-300">
+                          Datos inventados
+                        </span>
+                      )}
+                    </p>
                     <p className="text-xs text-neutral-400">
                       {c.detection_type} · {c.detection_value}
                     </p>

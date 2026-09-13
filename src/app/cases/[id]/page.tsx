@@ -29,7 +29,7 @@ export default async function CaseDetailPage({
   const { data: caseRow } = await supabase
     .from("senal30_cases")
     .select(
-      "id, patient_alias, detection_type, detection_value, detected_at, affordability_status, signal_status, created_at"
+      "id, patient_alias, detection_type, detection_value, detected_at, affordability_status, signal_status, is_seed, created_at"
     )
     .eq("id", id)
     .single();
@@ -40,7 +40,9 @@ export default async function CaseDetailPage({
 
   const { data: baseline } = await supabase
     .from("senal30_baselines")
-    .select("raw_text, classified_symptoms, declared_signal, has_credible_signal")
+    .select(
+      "raw_text, classified_symptoms, declared_signal, has_credible_signal, ai_labeled"
+    )
     .eq("case_id", id)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -89,7 +91,12 @@ export default async function CaseDetailPage({
             {caseRow.detected_at}
           </span>
         </div>
-        <p className="text-sm text-neutral-400">
+        {caseRow.is_seed && (
+          <span className="mt-1 inline-block rounded-full bg-sky-950 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-sky-300">
+            Datos inventados — caso de demostración
+          </span>
+        )}
+        <p className="mt-1 text-sm text-neutral-400">
           {caseRow.detection_type} · {caseRow.detection_value} · costo del
           siguiente paso: {AFFORDABILITY_LABELS[caseRow.affordability_status]}
         </p>
@@ -99,6 +106,7 @@ export default async function CaseDetailPage({
             rationale={rationale}
             rawText={baseline?.raw_text ?? ""}
             symptomCount={symptomCount}
+            aiGenerated={baseline?.ai_labeled ?? true}
           />
         )}
 
@@ -110,9 +118,11 @@ export default async function CaseDetailPage({
             <p className="mt-2 text-sm text-emerald-100">
               Señal declarada: <strong>{baseline?.declared_signal}</strong>
             </p>
-            <div className="mt-3">
-              <AiDisclosure />
-            </div>
+            {baseline?.ai_labeled && (
+              <div className="mt-3">
+                <AiDisclosure />
+              </div>
+            )}
           </div>
         )}
 
@@ -187,10 +197,12 @@ function RefusalCard({
   rationale,
   rawText,
   symptomCount,
+  aiGenerated,
 }: {
   rationale: string;
   rawText: string;
   symptomCount: number;
+  aiGenerated: boolean;
 }) {
   return (
     <div className="mt-6 rounded-lg border-2 border-amber-600 bg-amber-950/40 p-6">
@@ -223,9 +235,11 @@ function RefusalCard({
         <span>Síntomas reversibles en 30 días: {symptomCount}</span>
       </div>
 
-      <div className="mt-4">
-        <AiDisclosure />
-      </div>
+      {aiGenerated && (
+        <div className="mt-4">
+          <AiDisclosure />
+        </div>
+      )}
     </div>
   );
 }

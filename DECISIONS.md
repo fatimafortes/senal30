@@ -1,5 +1,69 @@
 # DECISIONS
 
+## 2026-09-13 — Robustez de cuota: modelo lite + modo de demostración
+
+**Contexto**: el hallazgo del commit 3 (20 solicitudes/día en
+`gemini-3.6-flash`) es un riesgo real para la entrega — el rubro más pesado
+("funciona en la URL") no puede depender de que quede cuota el día de la
+demo.
+
+**Investigación de rate limits**:
+- `ai.google.dev/gemini-api/docs/rate-limits` y `.../docs/pricing` ya **no
+  publican una tabla estática** de límites del free tier por modelo — dicen
+  explícitamente "view your active rate limits in AI Studio" (son
+  específicos por proyecto). Tampoco documentan RPD para `generateContent`
+  en el tier gratuito; solo mencionan límites de grounding (Search/Maps).
+- Varios blogs de terceros (aifreeapi.com, tinkerllm.com, tokenmix.ai, etc.)
+  coinciden en que los modelos **flash-lite** tienen cuota gratuita mucho
+  mayor que flash normal (cifras entre 1,000 y 1,500 RPD según la fuente,
+  con fechas distintas de 2026 — no hay una cifra oficial única, pero todas
+  apuntan en la misma dirección).
+- Confirmado empíricamente contra la API real (fuente más confiable que
+  cualquier blog): `gemini-3.6-flash` truena a los 20/día
+  (`GenerateRequestsPerDayPerProjectPerModel-FreeTier`, quotaValue 20). Un
+  request de prueba a `gemini-3.5-flash-lite` con el mismo tipo de texto
+  respondió bien, sin fricción, y con menos overhead de "thinking" tokens
+  que el modelo 3.6 (más rápido y más barato si algún día se paga).
+
+**Decisión — cambio de modelo**: `GEMINI_MODEL` en `src/lib/llm.ts` pasó de
+`gemini-3.6-flash` a `gemini-3.5-flash-lite` — un cambio de una línea,
+exactamente como predijo la usuaria, gracias a que el proveedor ya estaba
+aislado ahí. T1/T2/T3 vueltos a correr contra el modelo nuevo: los tres
+pasan, con el mismo tono en lenguaje de la paciente.
+
+**Decisión — modo de demostración, no caché genérico**: se evaluó una capa
+de caché de respuestas del LLM y se descartó — el texto de síntomas de cada
+paciente real es único, cachear no habría ayudado en nada al escenario que
+realmente le preocupa a la usuaria (que la demo funcione aunque la cuota se
+agote). En su lugar:
+- `supabase/migrations/0002_senal30_add_seed_flag.sql`: agrega
+  `is_seed boolean not null default false` a `senal30_cases` (aditivo, no
+  destructivo, solo toca esa tabla `senal30_`).
+- `src/lib/seed-data.ts`: 4 casos 100% inventados con su clasificación ya
+  escrita a mano — cubren los cuatro `signal_status` posibles, incluyendo
+  **la pantalla de rechazo sin resolver todavía** (la más importante).
+  Ninguno llama a Gemini.
+- `POST /api/seed`: botón "Cargar casos de demostración" en `/cases`,
+  idempotente por owner (no duplica si ya sembró). Solo los casos que la
+  usuaria cree a mano en vivo tocan la API real.
+- Honestidad: los casos sembrados guardan `baselines.ai_labeled = false` y
+  usan `actor: "seed_data"` en el audit log (nunca `"ai_classifier"), y la
+  etiqueta "Contenido generado por IA" **no se muestra** en sus tarjetas —
+  porque esa clasificación no la generó ningún modelo, y decir lo contrario
+  sería falso. Además llevan una insignia visible "Datos inventados — caso
+  de demostración" en la lista y en el detalle (piso de seguridad #5).
+
+**No se agregó ningún override del flujo real** — el modo de demostración
+vive completamente al margen de `classifyBaselineSymptoms` y de las rutas
+de intake/enroll/manufacture/unresolved; no cambia ninguna verificación
+existente.
+
+Sources:
+- [ai.google.dev/gemini-api/docs/rate-limits](https://ai.google.dev/gemini-api/docs/rate-limits)
+- [ai.google.dev/gemini-api/docs/pricing](https://ai.google.dev/gemini-api/docs/pricing)
+- [Gemini API Free Tier Rate Limits 2026 (tinkerllm.com)](https://tinkerllm.com/blog/gemini-api-free-tier-limits-rate-quotas/)
+- [Gemini API Free Tier Rate Limits: Complete Guide for 2026 (aifreeapi.com)](https://www.aifreeapi.com/en/posts/gemini-api-free-tier-rate-limits)
+
 ## 2026-09-13 — Commit 3: la negativa
 
 **Qué cambió**

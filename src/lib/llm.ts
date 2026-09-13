@@ -5,7 +5,7 @@ import { z } from "zod";
 // más adelante no debería tocar nada más en la app.
 
 const MAX_INPUT_LENGTH = 2000;
-const GEMINI_MODEL = "gemini-3.6-flash";
+const GEMINI_MODEL = "gemini-3.5-flash-lite";
 
 const REVERSIBLE_SYMPTOMS = [
   "nicturia",
