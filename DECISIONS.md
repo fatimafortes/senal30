@@ -1,5 +1,48 @@
 # DECISIONS
 
+## 2026-09-13 — Hallazgo del persona test: la pantalla de rechazo premiaba fabricar señales
+
+**Hallazgo**: la usuaria corrió el persona test con dos usuarios
+sintéticos (la paciente y la responsable de caso, que lleva 60 casos a
+90 segundos cada uno y a quien su jefa mide por cuántos cierra al mes).
+Frente a los dos botones de la pantalla de rechazo, la responsable de
+caso dijo: *"le pico a 'Declarar una señal', porque el negro es el que
+te deja avanzar y 'registrar como no resuelto' suena a que no me lo
+cuentan como cerrado. Eso me pega en el número del mes."* También
+preguntó, antes de decidirse: *"¿me va a marcar que hice trampa?"*
+
+Diagnóstico: el diseño anterior hacía "Declarar una señal" el botón negro
+(primario) y "Registrar como no resuelto" un botón secundario en outline
+— y el nombre mismo, "no resuelto", suena a pendiente, no a un desenlace
+completado. Bajo presión de métricas reales, esa asimetría empuja hacia
+fabricar una señal en vez de documentar honestamente que no hay ninguna
+— exactamente lo que la Condición 5 del Blueprint (Shadow Clause) existe
+para impedir. El producto se derrotaba a sí mismo desde el diseño de un
+solo botón.
+
+**Fix (`CaseActions.tsx`, `cases/page.tsx`, `cases/[id]/page.tsx`)**:
+1. Los dos caminos ahora tienen el mismo peso visual — dos tarjetas
+   idénticas lado a lado, mismo botón negro en ambas. Ninguno lee como
+   "el que te deja avanzar" y el otro como "el secundario".
+2. "Registrar como no resuelto" se renombró a "Cerrar sin señal de
+   retorno" / "Cerrar como sin señal", con el texto explícito: *"Los dos
+   caminos cuentan igual como caso resuelto — ninguno es un pendiente ni
+   te descuenta del número del mes."* El badge en `/cases` pasó de "Sin
+   resolver" a "Resuelto — sin señal", y la tarjeta de detalle dice
+   "Caso resuelto — sin señal de retorno" (el valor `unresolved` en la
+   base de datos no cambió, solo el texto que ve la usuaria).
+3. "Declarar una señal" ahora dice, **antes de que la responsable de caso
+   pique el botón** (no después, en el formulario): *"Es una herramienta
+   legítima cuando de verdad no hay otra forma de dar seguimiento — pero
+   queda visible: marcada como 'manufacturada' y con tu nombre en la
+   bitácora del caso, no oculta ni anónima."* Responde directamente su
+   pregunta ("¿me va a marcar que hice trampa?"): no es trampa, es
+   legítimo, pero es visible y queda a su nombre.
+
+**Sin overrides** — nada de esto cambia qué transiciones son posibles ni
+relaja ninguna verificación; solo corrige el incentivo del lenguaje y el
+diseño para que la opción honesta no cueste más que la manufacturada.
+
 ## 2026-09-13 — T8, T9, T10 cerrados (Security Floor) — y dos huecos de T10 corregidos
 
 **T8 — validación, nada llega a la base ni al prompt.** Probado con

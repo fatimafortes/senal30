@@ -225,8 +225,13 @@ export default async function CaseDetailPage({
             {caseRow.signal_status === "unresolved" && (
               <div className="mt-6 rounded border border-neutral-300 bg-neutral-50 p-5">
                 <h2 className="text-lg font-bold text-neutral-800">
-                  Caso registrado como no resuelto
+                  Caso resuelto — sin señal de retorno
                 </h2>
+                <p className="mt-1 text-sm text-neutral-600">
+                  Este caso queda cerrado y contado como resuelto. No había
+                  con qué comprobar que el tratamiento le está funcionando —
+                  eso se documenta como evidencia, no como un pendiente.
+                </p>
                 {Boolean(
                   (unresolvedEvent?.payload as { note?: string })?.note
                 ) && (

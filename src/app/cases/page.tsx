@@ -4,11 +4,14 @@ import { createClient } from "@/lib/supabase/server";
 import { SeedButton } from "./SeedButton";
 import { FictionalDataNotice } from "@/components/FictionalDataNotice";
 
+// "unresolved" es un desenlace cerrado y contado, no un pendiente — el
+// texto lo dice así a propósito (hallazgo del persona test, ver
+// DECISIONS.md). El valor en la base sigue siendo "unresolved".
 const SIGNAL_LABELS: Record<string, string> = {
   available: "Señal disponible",
   no_credible_signal: "Sin señal",
   manufactured: "Señal manufacturada",
-  unresolved: "Sin resolver",
+  unresolved: "Resuelto — sin señal",
 };
 
 // docs/PACKET.md, pantalla 1: "los casos sin señal de retorno suben al

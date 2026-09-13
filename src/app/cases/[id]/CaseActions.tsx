@@ -98,31 +98,59 @@ export function CaseActions({
       {signalStatus === "no_credible_signal" && (
         <div className="rounded border border-neutral-300 bg-neutral-50 p-4">
           <p className="text-sm font-medium text-neutral-700">
-            Tienes dos caminos con este caso:
+            Este caso necesita una decisión tuya. Los dos caminos cuentan
+            igual como <strong>caso resuelto</strong> — ninguno es un
+            pendiente ni te descuenta del número del mes.
           </p>
-          <div className="mt-3 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() =>
-                setOpenForm(openForm === "manufacture" ? null : "manufacture")
-              }
-              className="rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
-            >
-              Declarar una señal
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                setOpenForm(openForm === "unresolved" ? null : "unresolved")
-              }
-              className="rounded border border-neutral-400 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-white"
-            >
-              Registrar como no resuelto
-            </button>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="rounded border border-neutral-300 bg-white p-3">
+              <p className="text-sm font-semibold text-neutral-900">
+                Declarar una señal manufacturada
+              </p>
+              <p className="mt-1 text-xs text-neutral-600">
+                Es una herramienta legítima cuando de verdad no hay otra
+                forma de dar seguimiento — pero queda visible: marcada como
+                &ldquo;manufacturada&rdquo; y con tu nombre en la bitácora
+                del caso, no oculta ni anónima.
+              </p>
+              <button
+                type="button"
+                onClick={() =>
+                  setOpenForm(openForm === "manufacture" ? null : "manufacture")
+                }
+                className="mt-3 w-full rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
+              >
+                Declarar señal manufacturada
+              </button>
+            </div>
+
+            <div className="rounded border border-neutral-300 bg-white p-3">
+              <p className="text-sm font-semibold text-neutral-900">
+                Cerrar sin señal de retorno
+              </p>
+              <p className="mt-1 text-xs text-neutral-600">
+                Documenta que este caso no tiene con qué comprobar que el
+                tratamiento le está funcionando. Queda cerrado y contado
+                como resuelto — es evidencia, no un caso abandonado.
+              </p>
+              <button
+                type="button"
+                onClick={() =>
+                  setOpenForm(openForm === "unresolved" ? null : "unresolved")
+                }
+                className="mt-3 w-full rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800"
+              >
+                Cerrar como sin señal
+              </button>
+            </div>
           </div>
 
           {openForm === "manufacture" && (
             <form onSubmit={handleManufacture} className="mt-4 space-y-3">
+              <p className="text-xs text-neutral-600">
+                Se registrará como señal manufacturada, atribuida a ti.
+              </p>
               <div>
                 <label className="block text-sm font-medium text-neutral-700">
                   Señal declarada
@@ -161,6 +189,9 @@ export function CaseActions({
 
           {openForm === "unresolved" && (
             <form onSubmit={handleUnresolved} className="mt-4 space-y-3">
+              <p className="text-xs text-neutral-600">
+                Se registrará como caso resuelto, sin señal de retorno.
+              </p>
               <div>
                 <label className="block text-sm font-medium text-neutral-700">
                   Nota (opcional)
@@ -176,9 +207,9 @@ export function CaseActions({
               <button
                 type="submit"
                 disabled={busy}
-                className="rounded border border-neutral-400 px-3 py-1.5 text-sm font-medium text-neutral-700 hover:bg-white disabled:opacity-60"
+                className="rounded bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-60"
               >
-                Confirmar registro sin resolver
+                Confirmar cierre sin señal
               </button>
             </form>
           )}
