@@ -1,5 +1,21 @@
 # DECISIONS
 
+## 2026-09-13 — T7 cerrado con evidencia empírica (dos cuentas reales)
+
+Probado en producción por la usuaria con una segunda cuenta de Google
+real, distinta al owner de los casos:
+
+- Sin sesión, la URL directa de un caso (`/cases/[id]`) redirige a
+  `/login` — el proxy protege la ruta antes de que llegue a la página.
+- Con sesión de la segunda cuenta: `/cases` muestra 0 casos (RLS scoping
+  la consulta por `owner_id = auth.uid()` funciona), y la URL directa de
+  un caso de la primera cuenta devuelve 404 — RLS bloquea el `select`,
+  `page.tsx` lo trata como "no existe" (comportamiento correcto: no debe
+  filtrar ni siquiera que el caso existe, mucho menos su contenido).
+- El aviso de datos ficticios se ve correctamente en `/cases`.
+
+T7 del test plan (`docs/PACKET.md` sección 9) cerrado.
+
 ## 2026-09-13 — T6 con sesión real: fuera de alcance por tiempo, y por qué no hace falta
 
 Se armó el procedimiento para probar T6 con una cookie de sesión real
