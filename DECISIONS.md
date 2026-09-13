@@ -1,5 +1,57 @@
 # DECISIONS
 
+## 2026-09-13 — T8, T9, T10 cerrados (Security Floor) — y dos huecos de T10 corregidos
+
+**T8 — validación, nada llega a la base ni al prompt.** Probado con
+`scripts/test-validation.ts` contra el schema real (`caseIntakeSchema`),
+simulando el mismo formato de mensaje que arma `POST /api/cases`:
+- Texto de 10,000 caracteres → rechazado: `Revisa "raw_text": Máximo 2000
+  caracteres.`
+- Formulario completamente vacío → rechazado: `Revisa "patient_alias":
+  Requerido.` (6 campos fallan a la vez, se muestra el primero).
+
+Por construcción del route handler, `caseIntakeSchema.safeParse` corre
+antes de cualquier llamada a `classifyBaselineSymptoms` o a Supabase —
+ninguno de los dos casos llega a tocar la base ni el prompt.
+
+**T9 — la key de Gemini nunca sale al cliente.** Se hizo un build de
+producción con las variables reales (no placeholders) y se buscó tanto el
+nombre `GEMINI_API_KEY` como el valor real de la key en `.next/static`
+(lo único que se manda al navegador): cero resultados en ambos casos. Sí
+aparece — a propósito — `NEXT_PUBLIC_SUPABASE_ANON_KEY`, que está
+diseñada para ser pública (RLS es lo que protege los datos, no el
+secreto de esa key). `GEMINI_API_KEY` solo aparece en `.next/server/`
+(código que corre en el servidor, nunca llega al navegador).
+
+**T10 — etiqueta de IA en toda pantalla con salida de modelo.** Al
+revisar las 5 apariciones de `<AiDisclosure />` en el código se
+encontraron dos huecos reales, corregidos en `CheckpointSection.tsx`:
+1. La tarjeta de veredicto en borrador mostraba la etiqueta incluso
+   cuando `verdict = 'not_scalable'` — ese texto es fijo del sistema
+   (nunca se declaró señal, nunca llama a Gemini), no de IA. Ahora la
+   etiqueta se excluye explícitamente para `not_scalable`.
+2. Una vez confirmado el veredicto, la etiqueta **desaparecía por
+   completo**, aunque el texto mostrado (`ai_rationale`) seguía siendo el
+   mismo que redactó el modelo cuando no hubo corrección. La confirmación
+   humana aprueba el borrador, no cambia quién lo escribió — la etiqueta
+   ahora se mantiene después de confirmar, y solo desaparece cuando el
+   texto mostrado es la razón de la propia usuaria (corrección) o un
+   texto fijo del sistema (`not_scalable`, casos semilla).
+
+Con esos dos fixes, las 5 ubicaciones actuales son consistentes: la
+etiqueta aparece si y solo si el texto que se muestra lo escribió el
+modelo, en cualquier estado de la pantalla.
+
+## 2026-09-13 — T3/T4/T5: dejados como estaban, con evidencia adicional
+
+Por instrucción de la usuaria, no se tocan. T3 ya cubierto por
+`scripts/test-classification.ts` (texto ambiguo → sin candidatos). T4/T5
+ya cubiertos por `scripts/test-checkpoint.ts` (mejora → confirmed, sin
+cambio → failed) y ahora también verificados en producción con datos
+reales: la usuaria corrió el checkpoint de día 30 del caso de Maria con
+las tres respuestas mostrando que nada cambió, y el sistema produjo
+`SEÑAL FALLÓ` correctamente.
+
 ## 2026-09-13 — T7 cerrado con evidencia empírica (dos cuentas reales)
 
 Probado en producción por la usuaria con una segunda cuenta de Google

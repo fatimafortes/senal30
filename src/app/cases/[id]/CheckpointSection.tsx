@@ -187,11 +187,12 @@ export function CheckpointSection({
           <p className="mt-2 text-xs opacity-80">
             Borrador — pendiente de confirmación.
           </p>
-          {!comparisonProviderUnavailable && (
-            <div className="mt-3">
-              <AiDisclosure />
-            </div>
-          )}
+          {checkpoint.verdict !== "not_scalable" &&
+            !comparisonProviderUnavailable && (
+              <div className="mt-3">
+                <AiDisclosure />
+              </div>
+            )}
 
           {!correcting ? (
             <div className="mt-4 flex flex-wrap gap-3">
@@ -271,6 +272,16 @@ export function CheckpointSection({
               : ""}
             .
           </p>
+          {/* El texto de arriba sigue siendo el que redactó el modelo si no
+              se corrigió — la etiqueta no desaparece solo porque ya se
+              confirmó. */}
+          {confirmationEvent?.event !== "checkpoint_overridden" &&
+            checkpoint.verdict !== "not_scalable" &&
+            !comparisonProviderUnavailable && (
+              <div className="mt-3">
+                <AiDisclosure />
+              </div>
+            )}
         </div>
       )}
 
