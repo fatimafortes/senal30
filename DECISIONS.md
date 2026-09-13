@@ -1,5 +1,32 @@
 # DECISIONS
 
+## 2026-09-13 — Cambio de proveedor LLM: Anthropic → Google Gemini
+
+**Qué cambió**: `docs/PACKET.md` (tabla de arquitectura, fila LLM) y
+`.env.local.example` ahora dicen Google Gemini API / `GEMINI_API_KEY` en vez
+de Anthropic API / `ANTHROPIC_API_KEY`. Nada más del packet se tocó.
+
+**Por qué**: la usuaria tiene tier gratuito en Google Gemini y prefiere
+usarlo en vez de pagar por la API de Anthropic para este proyecto escolar.
+
+**Qué NO cambia** (se mantiene igual que en `docs/IMPLEMENTATION_PROMPT.md`,
+sección "LLM prompt rules"):
+- La llamada al modelo sigue siendo exclusivamente desde un route handler de
+  servidor — la key nunca llega al cliente.
+- Respuesta exigida en JSON estricto, sin prosa ni fences de markdown; se
+  despoja cualquier fence de forma defensiva antes de parsear.
+- Si el parseo falla, el resultado cae a `has_credible_signal: false` y se
+  marca para revisión humana — falla siempre hacia el rechazo, nunca hacia
+  la inscripción automática.
+- Nunca se envía el alias del paciente ni ningún identificador al modelo,
+  solo el texto de síntomas, con un tope de longitud antes de la llamada.
+- La etiqueta en pantalla sigue siendo "Contenido generado por IA — revisar
+  antes de actuar", sin nombrar el proveedor.
+
+El código del commit 2 aísla el proveedor detrás de una sola función
+(`src/lib/llm.ts`) para que un futuro cambio de proveedor no toque el resto
+de la app.
+
 ## 2026-09-12 — Commit 1: skeleton + security floor
 
 **What changed**

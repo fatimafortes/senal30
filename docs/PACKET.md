@@ -140,7 +140,7 @@ The commercial version is sold to whoever is accountable for outcomes rather tha
 | Database | Supabase Postgres | Free tier, RLS built in |
 | Auth | Supabase Auth — Sign in with Google | Security floor item 2 |
 | Row security | RLS on every table with user data | Security floor item 3 |
-| LLM | Anthropic API, server-side route handler only | Key never reaches the client |
+| LLM | Google Gemini API, server-side route handler only | Key never reaches the client |
 | Secrets | Vercel environment variables only; `.env.local` gitignored | Security floor item 1 |
 | Validation | Zod on every form + server-side re-validation | Security floor item 4 |
 | Time simulation | `simulated_day` column + "advance 30 days" dev control, labeled on screen | Lets the 30-day loop be demoed in 3 minutes |
