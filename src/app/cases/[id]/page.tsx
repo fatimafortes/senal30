@@ -164,7 +164,7 @@ export default async function CaseDetailPage({
             {caseRow.signal_status === "manufactured" && (
               <div className="mt-6 rounded border border-amber-600 bg-amber-50 p-5">
                 <h2 className="text-lg font-bold text-amber-800">
-                  Señal manufacturada por el owner
+                  Señal manufacturada por ti
                 </h2>
                 <p className="mt-2 text-sm text-amber-900">
                   Señal declarada:{" "}

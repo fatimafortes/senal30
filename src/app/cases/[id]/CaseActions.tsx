@@ -98,7 +98,7 @@ export function CaseActions({
       {signalStatus === "no_credible_signal" && (
         <div className="rounded border border-neutral-300 bg-neutral-50 p-4">
           <p className="text-sm font-medium text-neutral-700">
-            El owner tiene dos caminos con este caso:
+            Tienes dos caminos con este caso:
           </p>
           <div className="mt-3 flex flex-wrap gap-3">
             <button
