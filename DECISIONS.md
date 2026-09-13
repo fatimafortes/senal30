@@ -1,5 +1,62 @@
 # DECISIONS
 
+## 2026-09-13 — Commit 4: el loop de 30 días
+
+**Alcance**: limitado a día 30 (preguntas + comparación + veredicto), tal
+como lo especifica `docs/IMPLEMENTATION_PROMPT.md` para este commit. El
+"pulso" de día 7 que aparece en el diagrama de `docs/PACKET.md` no está en
+los criterios de aceptación de este commit (solo T4/T5, ambos de día 30) —
+queda fuera, no es un olvido. La confirmación/override del veredicto
+(Condición 2) es explícitamente el commit 5: aquí el veredicto queda como
+**borrador**, `confirmed_by_owner_id` nunca se toca, y el caso nunca se
+cierra. Por lo mismo, la parte de T5 que dice "surfaces an escalation on
+the caseload list" tampoco está completa todavía — el veredicto `failed`
+se guarda y se muestra en el detalle del caso, pero `/cases` no lo
+prioriza aún; eso es trabajo de comisión 5 ("sorts escalations to the
+top").
+
+**Qué se agregó**:
+- `src/lib/llm.ts` se refactorizó: la lógica de llamar a Gemini y parsear
+  JSON estricto (antes duplicada) ahora vive en un solo `callGemini<T>`
+  interno; `classifyBaselineSymptoms` no cambió de comportamiento, solo de
+  implementación. Dos funciones nuevas, mismas reglas que la clasificación
+  (solo texto de síntomas/señal, nunca alias ni identificadores; JSON
+  estricto; nunca lanza):
+  - `generateCheckpointQuestions(declaredSignal)`: redacta 3 preguntas de
+    día 30 en español llano para la señal declarada. Si el proveedor
+    falla, cae en una plantilla fija genérica (`provider_unavailable:
+    true`) en vez de bloquear el checkpoint — no hay nada que "rechazar"
+    aquí, lo que importa es que el caso siga su curso.
+  - `compareCheckpointToBaseline(baselineText, declaredSignal, answers)`:
+    compara línea base contra las 3 respuestas y decide `confirmed` |
+    `failed`. Si el proveedor falla, `verdict` queda en `null` (nunca
+    inventa un veredicto) — pendiente de revisión humana en commit 5.
+- `POST /api/cases/[id]/advance-day`: la herramienta de desarrollo
+  etiquetada en pantalla ("⏩ Avanzar 30 días (simulado)"). Bloqueada si el
+  caso sigue en `no_credible_signal` sin decisión, o si ya llegó a 30. Si
+  el caso tiene una señal declarada (orgánica o manufacturada) agenda un
+  checkpoint con 3 preguntas generadas; si no (caso `unresolved`, nunca se
+  declaró señal), escribe directo `verdict = 'not_scalable'` con una
+  razón fija del sistema — no la genera ningún modelo, así que no lleva
+  la etiqueta de IA.
+- `POST /api/cases/[id]/checkpoint/answer`: captura las 3 respuestas
+  simuladas y produce el veredicto vía `compareCheckpointToBaseline`.
+- `CheckpointSection.tsx`: en `/cases/[id]`, debajo de las acciones del
+  caso. Muestra el botón de avanzar tiempo, luego la "vista simulada de la
+  paciente" (preguntas + respuestas, etiquetada explícitamente como
+  simulada — WhatsApp real es plumbing fuera de alcance, igual que en el
+  scope cut del packet) y por último la tarjeta de veredicto
+  (CONFIRMADA/FALLÓ/NO ESCALABLE), marcada como borrador.
+
+**Pruebas de aceptación (T4/T5)**, corridas con `scripts/test-checkpoint.ts`
+contra la API real (mismo patrón que T1/T2/T3):
+- T4 (respuestas muestran mejora en nicturia): `verdict: "confirmed"` ✓
+- T5 (respuestas muestran que sigue igual): `verdict: "failed"` ✓
+
+Las preguntas generadas también se revisaron a mano: lenguaje llano, sin
+jerga clínica ni de sistema, consistente con el tono ya establecido en la
+clasificación de línea base.
+
 ## 2026-09-13 — Orden de la lista y contador de "requiere decisión"
 
 Dos desvíos del packet en `/cases`, señalados por la usuaria tras cargar

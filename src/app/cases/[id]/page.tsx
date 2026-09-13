@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AiDisclosure } from "@/components/AiDisclosure";
 import { CaseActions } from "./CaseActions";
+import { CheckpointSection } from "./CheckpointSection";
 
 const AFFORDABILITY_LABELS: Record<string, string> = {
   covered: "Cubierto",
@@ -29,7 +30,7 @@ export default async function CaseDetailPage({
   const { data: caseRow, error: caseError } = await supabase
     .from("senal30_cases")
     .select(
-      "id, patient_alias, detection_type, detection_value, detected_at, affordability_status, signal_status, is_seed, created_at"
+      "id, patient_alias, detection_type, detection_value, detected_at, affordability_status, signal_status, is_seed, simulated_day, created_at"
     )
     .eq("id", id)
     .single();
@@ -87,6 +88,22 @@ export default async function CaseDetailPage({
   const unresolvedEvent = auditLog?.find(
     (e) => e.event === "marked_unresolved"
   );
+
+  const { data: checkpoint } = await supabase
+    .from("senal30_checkpoints")
+    .select("verdict, ai_rationale, responses")
+    .eq("case_id", id)
+    .eq("day", 30)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const comparisonEvent = auditLog?.find(
+    (e) => e.event === "checkpoint_compared"
+  );
+  const comparisonProviderUnavailable =
+    (comparisonEvent?.payload as { provider_unavailable?: boolean } | null)
+      ?.provider_unavailable === true;
 
   const symptomCount = Array.isArray(baseline?.classified_symptoms)
     ? baseline.classified_symptoms.length
@@ -210,6 +227,14 @@ export default async function CaseDetailPage({
               caseId={caseRow.id}
               signalStatus={caseRow.signal_status}
               alreadyEnrolled={alreadyEnrolled}
+            />
+
+            <CheckpointSection
+              caseId={caseRow.id}
+              signalStatus={caseRow.signal_status}
+              simulatedDay={caseRow.simulated_day}
+              checkpoint={checkpoint}
+              comparisonProviderUnavailable={comparisonProviderUnavailable}
             />
           </div>
 

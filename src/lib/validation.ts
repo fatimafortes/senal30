@@ -40,3 +40,11 @@ export const markUnresolvedSchema = z.object({
 });
 
 export type MarkUnresolvedInput = z.infer<typeof markUnresolvedSchema>;
+
+export const checkpointAnswersSchema = z.object({
+  answers: z
+    .array(z.string().trim().min(1, "Respuesta requerida").max(500))
+    .length(3, "Se esperan exactamente 3 respuestas"),
+});
+
+export type CheckpointAnswersInput = z.infer<typeof checkpointAnswersSchema>;
