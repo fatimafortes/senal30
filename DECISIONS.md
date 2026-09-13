@@ -28,6 +28,14 @@ falla.
 migración, confirmar explícitamente que se corrió — no asumirlo porque
 otra parte de la app (como el login) funcionó.
 
+**Redeploy / verificación final**: `0001_senal30_init.sql` y
+`0002_senal30_add_seed_flag.sql` corridas sin errores en el proyecto
+"semestre". Causa confirmada por la propia usuaria al ejecutar 0001: era
+la tabla faltante, no la cuota de Gemini. El código ya estaba desplegado
+(commits del mismo día con el logging/mensajes mejorados); con las tablas
+ahora existiendo, la creación de casos queda lista para probarse de nuevo
+en producción. Bug cerrado.
+
 **Fix de código**: `/cases` y `/cases/[id]` ahora revisan el `error` de
 cada lectura a Supabase. `/cases` muestra un aviso rojo explícito en vez de
 "Todavía no hay casos." cuando la consulta falla. `/cases/[id]` distingue
