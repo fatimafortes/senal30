@@ -4,6 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { caseIntakeSchema } from "@/lib/validation";
 import { classifyBaselineSymptoms } from "@/lib/llm";
 
+// Gemini puede tardar 8-20s+ bajo carga (medido en producción); da
+// margen antes de que Vercel mate la función por timeout.
+export const maxDuration = 30;
+
 // Traduce errores de Postgres a algo que la usuaria pueda actuar, sin
 // filtrar detalles internos de la base. El error completo siempre queda en
 // los logs del servidor para diagnóstico.

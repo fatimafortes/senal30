@@ -3,6 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 import { checkpointAnswersSchema } from "@/lib/validation";
 import { compareCheckpointToBaseline } from "@/lib/llm";
 
+// Gemini puede tardar 8-20s+ bajo carga (medido en producción); da
+// margen antes de que Vercel mate la función por timeout.
+export const maxDuration = 30;
+
 // Captura las respuestas simuladas de la paciente al checkpoint de día 30
 // y produce el veredicto. El veredicto queda como borrador — commit 5 es
 // quien lo confirma o lo sobreescribe; esta ruta nunca cierra el caso.

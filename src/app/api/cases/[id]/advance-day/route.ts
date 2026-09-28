@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateCheckpointQuestions } from "@/lib/llm";
 
+// Gemini puede tardar 8-20s+ bajo carga (medido en producción); da
+// margen antes de que Vercel mate la función por timeout.
+export const maxDuration = 30;
+
 // Herramienta de desarrollo, etiquetada en pantalla: salta simulated_day
 // directo a 30 y agenda el checkpoint correspondiente. Solo aplica a casos
 // ya resueltos (no a los que siguen sin señal creíble sin decisión) y solo

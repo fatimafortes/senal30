@@ -1,5 +1,46 @@
 # DECISIONS
 
+## 2026-09-28 — Bug en la clasificación en vivo de /demo: causa real + mensaje incorrecto
+
+**Reporte**: "Ejemplo: sin síntomas" en `/demo` a veces devolvía "El
+servicio de clasificación no está disponible en este momento. El caso se
+guardó marcado para revisión humana." — un mensaje que miente (en `/demo`
+nunca se guarda ningún caso, ese texto viene del flujo real de creación).
+
+**Causa real, confirmada empíricamente** (llamando directo a la API de
+Gemini con la key de producción, sin pasar por nuestro código, en un
+loop): **no es cuota diaria agotada ni falta de `GEMINI_API_KEY`** (ambas
+confirmadas presentes/correctas). Es `gemini-3.5-flash-lite` fallando de
+forma intermitente con `503 UNAVAILABLE — "This model is currently
+experiencing high demand."` — un problema real y transitorio del lado de
+Google, exactamente el tipo de falla para el que existe
+`provider_unavailable`. Además, incluso las llamadas que sí funcionan
+tardan 8–22 segundos — lo suficiente para arriesgar que Vercel mate la
+función por timeout antes de que nuestro código pueda responder nada.
+
+**Fix**:
+- `src/app/api/demo/classify/route.ts`: cuando `classifyBaselineSymptoms`
+  regresa `provider_unavailable: true` (antes solo se manejaba el caso de
+  cuota propia agotada), la ruta ahora también cae a un resultado de
+  ejemplo precalculado — nunca deja pasar el texto genérico de
+  `lib/llm.ts` (que es correcto en el flujo real de creación de casos,
+  pero falso en la demo, donde nada se guarda). El ejemplo que se
+  muestra coincide con el texto exacto de los dos botones de ejemplo de
+  la UI si aplica, para que el resultado tenga sentido con lo que se
+  pidió clasificar.
+- La respuesta ahora usa `live: boolean` en vez de `quota_exceeded`,
+  porque ya no es solo un tema de cuota. `DemoClassifier.tsx` muestra una
+  insignia visible "Resultado de ejemplo, no en vivo" directamente sobre
+  el resultado (no solo un aviso aparte) y explica por qué (cuota propia
+  agotada, o Gemini saturado) — nunca un mensaje de error ni el texto de
+  "se guardó" fuera de contexto.
+- `export const maxDuration = 30` agregado a las cuatro rutas que llaman
+  a Gemini (`/api/cases`, `/api/cases/[id]/advance-day`,
+  `/api/cases/[id]/checkpoint/answer`, `/api/demo/classify`) — no solo la
+  de la demo. Dado que medimos hasta 22s en llamadas reales, el mismo
+  riesgo de timeout aplica al flujo real de creación de casos y al loop
+  de 30 días, no solo a la demo pública.
+
 ## 2026-09-28 — Corrección tras retroalimentación: `/demo` pública de solo lectura
 
 **Hallazgo del profesor**: la URL pública de SEÑAL 30 llevaba directo al
