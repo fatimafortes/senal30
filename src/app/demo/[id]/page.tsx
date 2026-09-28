@@ -1,14 +1,19 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
   RefusalCard,
   AvailableCard,
   ManufacturedCard,
   UnresolvedCard,
+  ConfirmedVerdictCard,
 } from "@/components/CaseStatusCards";
-import { CaseActions } from "./CaseActions";
-import { CheckpointSection } from "./CheckpointSection";
+
+// Pública, sin sesión, de solo lectura. A propósito NO importa
+// CaseActions ni CheckpointSection (los componentes que sí saben hacer
+// POST) — los botones de aquí abajo son <button disabled> sin onClick ni
+// <form>, así que no hay ningún camino de escritura compilado en esta
+// pantalla, ni oculto ni deshabilitado-pero-alcanzable.
 
 const AFFORDABILITY_LABELS: Record<string, string> = {
   covered: "Cubierto",
@@ -17,43 +22,22 @@ const AFFORDABILITY_LABELS: Record<string, string> = {
   unresolved: "Financieramente no resuelto",
 };
 
-export default async function CaseDetailPage({
+export default async function DemoCaseDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect("/login");
-  }
-
-  const { data: caseRow, error: caseError } = await supabase
+  const { data: caseRow } = await supabase
     .from("senal30_cases")
     .select(
-      "id, patient_alias, detection_type, detection_value, detected_at, affordability_status, signal_status, is_seed, simulated_day, created_at"
+      "id, patient_alias, detection_type, detection_value, detected_at, affordability_status, signal_status"
     )
     .eq("id", id)
-    .single();
-
-  // PGRST116 = "no rows" (single() strictness) — un 404 real. Cualquier
-  // otro error (tabla inexistente, RLS, etc.) es un problema de la base,
-  // no un caso que no existe, y no se debe disfrazar de 404.
-  if (caseError && caseError.code !== "PGRST116") {
-    console.error("[cases/id] failed to load senal30_cases", caseError);
-    return (
-      <main className="min-h-screen bg-stone-100 px-6 py-10 text-neutral-900">
-        <div className="mx-auto max-w-2xl rounded border border-red-300 bg-red-50 p-6 text-sm text-red-800">
-          No se pudo cargar este caso. Puede que falte correr una migración
-          pendiente en la base de datos — revisa los logs del servidor.
-        </div>
-      </main>
-    );
-  }
+    .eq("is_seed", true) // defensa adicional a la política RLS, no solo confianza en ella
+    .maybeSingle();
 
   if (!caseRow) {
     notFound();
@@ -75,18 +59,9 @@ export default async function CaseDetailPage({
     .eq("case_id", id)
     .order("created_at", { ascending: true });
 
-  const classificationEvent = auditLog?.find(
+  const classificationPayload = auditLog?.find(
     (e) => e.event === "baseline_classified"
-  );
-  const classificationPayload = classificationEvent?.payload as {
-    rationale?: string;
-    provider_unavailable?: boolean;
-  } | null;
-  const rationale = classificationPayload?.rationale ?? "";
-  const providerWasUnavailable =
-    classificationPayload?.provider_unavailable === true;
-  const alreadyEnrolled =
-    auditLog?.some((e) => e.event === "case_enrolled") ?? false;
+  )?.payload as { rationale?: string } | null;
   const manufactureEvent = auditLog?.find(
     (e) => e.event === "signal_manufactured"
   );
@@ -96,36 +71,10 @@ export default async function CaseDetailPage({
 
   const { data: checkpoint } = await supabase
     .from("senal30_checkpoints")
-    .select("verdict, ai_rationale, responses, confirmed_by_owner_id, confirmed_at")
+    .select("verdict, ai_rationale, confirmed_by_owner_id, confirmed_at")
     .eq("case_id", id)
     .eq("day", 30)
-    .order("created_at", { ascending: false })
-    .limit(1)
     .maybeSingle();
-
-  const comparisonEvent = auditLog?.find(
-    (e) => e.event === "checkpoint_compared"
-  );
-  const comparisonProviderUnavailable =
-    (comparisonEvent?.payload as { provider_unavailable?: boolean } | null)
-      ?.provider_unavailable === true;
-
-  const confirmationAuditEvent = auditLog?.find(
-    (e) =>
-      e.event === "checkpoint_confirmed" || e.event === "checkpoint_overridden"
-  );
-  const confirmationEvent = confirmationAuditEvent
-    ? {
-        event: confirmationAuditEvent.event as
-          | "checkpoint_confirmed"
-          | "checkpoint_overridden",
-        ...(confirmationAuditEvent.payload as {
-          verdict: "confirmed" | "failed" | "not_scalable";
-          original_verdict: "confirmed" | "failed" | "not_scalable" | null;
-          reason: string | null;
-        }),
-      }
-    : null;
 
   const symptomCount = Array.isArray(baseline?.classified_symptoms)
     ? baseline.classified_symptoms.length
@@ -134,16 +83,21 @@ export default async function CaseDetailPage({
   return (
     <main className="min-h-screen bg-stone-100 px-6 py-10 text-neutral-900">
       <div className="mx-auto max-w-2xl">
-        <div className="rounded border border-neutral-300 bg-white">
+        <div className="rounded border-2 border-amber-700 bg-amber-50 px-5 py-3 text-sm font-medium text-amber-900">
+          Demostración pública de solo lectura. Todos los datos son
+          ficticios. El producto completo requiere cuenta.
+        </div>
+
+        <div className="mt-4 rounded border border-neutral-300 bg-white">
           <div className="flex items-center justify-between border-b border-neutral-300 px-5 py-3">
             <p className="text-xs font-semibold uppercase tracking-widest text-neutral-500">
-              SEÑAL 30 · caso
+              SEÑAL 30 · demostración
             </p>
             <Link
-              href="/cases"
+              href="/demo"
               className="text-xs text-neutral-500 underline hover:text-neutral-800"
             >
-              ← Casos
+              ← Casos de demostración
             </Link>
           </div>
 
@@ -156,11 +110,6 @@ export default async function CaseDetailPage({
                 {caseRow.detected_at}
               </span>
             </div>
-            {caseRow.is_seed && (
-              <span className="mt-1 inline-block rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-sky-700">
-                Datos inventados — caso de demostración
-              </span>
-            )}
             <p className="mt-2 text-2xl font-semibold tabular-nums">
               {caseRow.detection_value}{" "}
               <span className="text-sm font-normal text-neutral-500">
@@ -174,26 +123,24 @@ export default async function CaseDetailPage({
 
             {caseRow.signal_status === "no_credible_signal" && (
               <RefusalCard
-                rationale={rationale}
+                rationale={classificationPayload?.rationale ?? ""}
                 rawText={baseline?.raw_text ?? ""}
                 symptomCount={symptomCount}
-                aiGenerated={
-                  (baseline?.ai_labeled ?? true) && !providerWasUnavailable
-                }
-                providerUnavailable={providerWasUnavailable}
+                aiGenerated={false}
+                providerUnavailable={false}
               />
             )}
 
             {caseRow.signal_status === "available" && (
               <AvailableCard
                 declaredSignal={baseline?.declared_signal}
-                showAiDisclosure={Boolean(baseline?.ai_labeled)}
+                showAiDisclosure={false}
               />
             )}
 
             {caseRow.signal_status === "manufactured" && (
               <ManufacturedCard
-                heading="Señal manufacturada por ti"
+                heading="Señal manufacturada por la responsable de caso"
                 declaredSignal={String(
                   (manufactureEvent?.payload as { declared_signal?: string })
                     ?.declared_signal ?? ""
@@ -213,20 +160,25 @@ export default async function CaseDetailPage({
               />
             )}
 
-            <CaseActions
-              caseId={caseRow.id}
-              signalStatus={caseRow.signal_status}
-              alreadyEnrolled={alreadyEnrolled}
-            />
+            {checkpoint?.verdict && (
+              <>
+                <p className="mt-6 text-xs font-semibold uppercase tracking-widest text-neutral-500">
+                  Checkpoint de día 30
+                </p>
+                <ConfirmedVerdictCard
+                  verdict={checkpoint.verdict}
+                  rationale={checkpoint.ai_rationale}
+                  confirmedAt={checkpoint.confirmed_at}
+                  wasOverridden={false}
+                  overrideOriginalVerdict={null}
+                  overrideReason={null}
+                  showAiDisclosure={false}
+                  correctedByLabel="la responsable de caso"
+                />
+              </>
+            )}
 
-            <CheckpointSection
-              caseId={caseRow.id}
-              signalStatus={caseRow.signal_status}
-              simulatedDay={caseRow.simulated_day}
-              checkpoint={checkpoint}
-              comparisonProviderUnavailable={comparisonProviderUnavailable}
-              confirmationEvent={confirmationEvent}
-            />
+            <IllustrativeActions signalStatus={caseRow.signal_status} />
           </div>
 
           {auditLog && auditLog.length > 0 && (
@@ -247,5 +199,44 @@ export default async function CaseDetailPage({
         </div>
       </div>
     </main>
+  );
+}
+
+// Botones deshabilitados, sin onClick ni <form> — puramente ilustrativos.
+// No es un componente cliente: no hay JS que los pueda conectar a nada.
+function IllustrativeActions({ signalStatus }: { signalStatus: string }) {
+  return (
+    <div className="mt-6 border-t border-neutral-200 pt-4">
+      <p className="mb-3 text-xs text-neutral-500">
+        Los botones de abajo son solo ilustrativos en esta demostración — no
+        hacen nada. El producto completo requiere cuenta.
+      </p>
+      {signalStatus === "no_credible_signal" ? (
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            disabled
+            className="cursor-not-allowed rounded bg-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-500"
+          >
+            Declarar señal manufacturada
+          </button>
+          <button
+            type="button"
+            disabled
+            className="cursor-not-allowed rounded bg-neutral-300 px-3 py-1.5 text-sm font-medium text-neutral-500"
+          >
+            Cerrar como sin señal
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          disabled
+          className="cursor-not-allowed rounded bg-neutral-300 px-4 py-2 text-sm font-medium text-neutral-500"
+        >
+          Inscribir caso
+        </button>
+      )}
+    </div>
   );
 }

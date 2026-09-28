@@ -99,6 +99,60 @@ export async function POST() {
       });
     }
 
+    if (seed.checkpoint) {
+      // Único caso semilla con el ciclo de día 30 completo, para que
+      // /demo pueda enseñar un veredicto confirmado y su bitácora sin
+      // depender de que alguien lo camine con la cuota de Gemini.
+      await supabase
+        .from("senal30_cases")
+        .update({ simulated_day: 30 })
+        .eq("id", caseId);
+
+      const confirmedAt = new Date().toISOString();
+
+      await supabase.from("senal30_checkpoints").insert({
+        case_id: caseId,
+        day: 30,
+        responses: {
+          questions: seed.checkpoint.questions,
+          answers: seed.checkpoint.answers,
+        },
+        verdict: seed.checkpoint.verdict,
+        ai_rationale: seed.checkpoint.rationale,
+        confirmed_by_owner_id: user.id,
+        confirmed_at: confirmedAt,
+      });
+
+      auditRows.push(
+        {
+          case_id: caseId,
+          event: "day_30_reached",
+          actor: "seed_data",
+          payload: { declared_signal: seed.classification.suggested_primary_signal },
+        },
+        {
+          case_id: caseId,
+          event: "checkpoint_compared",
+          actor: "seed_data",
+          payload: {
+            verdict: seed.checkpoint.verdict,
+            rationale: seed.checkpoint.rationale,
+            provider_unavailable: true, // no lo generó ningún modelo
+          },
+        },
+        {
+          case_id: caseId,
+          event: "checkpoint_confirmed",
+          actor: user.id,
+          payload: {
+            verdict: seed.checkpoint.verdict,
+            original_verdict: seed.checkpoint.verdict,
+            reason: null,
+          },
+        }
+      );
+    }
+
     await supabase.from("senal30_audit_log").insert(auditRows);
     created += 1;
   }

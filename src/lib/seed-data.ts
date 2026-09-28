@@ -10,6 +10,16 @@ type SeedResolution =
   | { type: "unresolved"; note: string }
   | null;
 
+// Solo para el caso que ilustra el ciclo completo de día 30 en /demo
+// (T.G.). Igual que el resto de la clasificación semilla, esto se
+// escribe a mano — no sale de Gemini y no se marca como generado por IA.
+type SeedCheckpoint = {
+  questions: [string, string, string];
+  answers: [string, string, string];
+  verdict: "confirmed" | "failed";
+  rationale: string;
+};
+
 export type SeedCase = {
   patient_alias: string;
   detection_type: string;
@@ -24,6 +34,7 @@ export type SeedCase = {
     rationale: string;
   };
   resolution: SeedResolution;
+  checkpoint?: SeedCheckpoint;
 };
 
 export const SEED_CASES: SeedCase[] = [
@@ -61,6 +72,24 @@ export const SEED_CASES: SeedCase[] = [
         "En unas semanas de tratamiento debería notar que se levanta mucho menos por las noches y que esa sed constante empieza a desaparecer.",
     },
     resolution: null,
+    // Este es el caso que en /demo muestra el ciclo completo: pregunta de
+    // día 30, respuesta, veredicto, y confirmación — para no depender de
+    // que un evaluador externo lo camine él mismo con la cuota de Gemini.
+    checkpoint: {
+      questions: [
+        "¿Te sigues levantando tantas veces por la noche para ir al baño como antes?",
+        "¿Cómo sientes la sed durante el día, comparada con hace un mes?",
+        "¿Notas que duermes más de corrido ahora?",
+      ],
+      answers: [
+        "Ya casi no me levanto, quizás una vez y ya.",
+        "La sed bajó bastante, ya no ando tomando agua todo el día.",
+        "Sí, duermo mucho mejor que antes.",
+      ],
+      verdict: "confirmed",
+      rationale:
+        "Al inicio se levantaba varias veces por noche y tenía sed constante; a los 30 días reporta levantarse casi nada y mucha menos sed — la mejora que se esperaba si el tratamiento funciona.",
+    },
   },
   {
     patient_alias: "A.L., 47 (demo)",

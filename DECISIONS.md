@@ -1,5 +1,65 @@
 # DECISIONS
 
+## 2026-09-28 — Corrección tras retroalimentación: `/demo` pública de solo lectura
+
+**Hallazgo del profesor**: la URL pública de SEÑAL 30 llevaba directo al
+login de Google — un evaluador externo sin cuenta no podía revisar el
+producto en absoluto. Se perdieron los 4 puntos de "funciona en la URL".
+
+**Fix — `/demo`, pública, sin sesión, de solo lectura**:
+
+- **Migración `0004_senal30_public_demo_access.sql`** (aditiva, solo toca
+  objetos `senal30_`, mostrada a la usuaria antes de correrla): agrega 4
+  políticas RLS nuevas, **solo SELECT, solo para el rol `anon`, solo
+  sobre filas `is_seed = true`** (o hijas de un caso `is_seed`, vía
+  join). No usa la service_role key en ningún momento — todo pasa por la
+  anon key pública de siempre. Ningún caso real queda expuesto: la
+  política existente `owner_id = auth.uid()` sigue intacta, y para el rol
+  `anon`, `auth.uid()` siempre es null.
+- La misma migración crea `senal30_demo_usage` (contador de uso diario
+  para la clasificación en vivo) con **RLS activado y cero políticas de
+  acceso directo** — no se puede leer ni escribir por REST, solo a través
+  de `senal30_try_consume_demo_quota()`, una función `security definer`
+  de un solo propósito con el límite (15/día) fijo en el código SQL, no
+  como parámetro que un llamador pudiera inflar.
+- `src/app/demo/page.tsx` y `src/app/demo/[id]/page.tsx`: reusan los
+  mismos componentes visuales que `/cases` (extraídos a
+  `src/components/CaseStatusCards.tsx` en este mismo cambio) pero **sin
+  importar `CaseActions` ni `CheckpointSection`** — los únicos
+  componentes que saben hacer `POST`. No hay ningún camino de escritura
+  compilado en esta pantalla, ni oculto ni "deshabilitado pero
+  alcanzable": los botones son `<button disabled>` sin `onClick` ni
+  `<form>`.
+- Extendí `src/lib/seed-data.ts` y `POST /api/seed` para que el caso T.G.
+  incluya un checkpoint de día 30 ya confirmado (`confirmed_by_owner_id`
+  = quien siembra los datos, satisface el trigger de la migración 0003)
+  — así `/demo` puede enseñar el ciclo completo con bitácora sin depender
+  de que un evaluador externo lo camine con la cuota real de Gemini.
+- **La única parte interactiva** es la caja "Prueba la clasificación en
+  vivo" (`DemoClassifier.tsx` → `POST /api/demo/classify`): valida con
+  Zod (tope de 500 caracteres), consume el cupo diario vía la función de
+  arriba, y **nunca escribe en `senal30_cases`/`baselines`/`audit_log`**
+  — solo regresa el JSON de clasificación para mostrarlo. Si ya se agotó
+  el cupo del día, regresa un ejemplo precalculado (no generado por
+  Gemini) con el mensaje explícito de que es un ejemplo, nunca se hace
+  pasar por una respuesta en vivo.
+- `/` dejó de redirigir sin más a `/login` — ahora es una pantalla con
+  "Iniciar sesión con Google" y "Ver demostración (sin cuenta)" cuando no
+  hay sesión (si hay sesión, sigue redirigiendo a `/cases` igual que
+  antes).
+- `README.md` actualizado con el enlace a `/demo` arriba de todo, y
+  corregidas las menciones a Anthropic y los pasos de migración que se
+  habían quedado atrás de 0001.
+
+**Verificación** (pendiente de correr en producción hasta que la usuaria
+aplique la migración 0004 — se completa esta entrada después):
+- Incógnito, sin sesión: `/demo` carga completo.
+- Sin sesión: `/cases` sigue redirigiendo a `/login`, `/cases/[id]` de un
+  caso real sigue dando 404.
+- `POST` anónimo directo a la API REST de Supabase sobre `senal30_cases`
+  (intentando insertar una fila): debe fallar por RLS — no hay ninguna
+  política de INSERT para `anon`.
+
 ## 2026-09-13 — Hallazgo del persona test: la pantalla de rechazo premiaba fabricar señales
 
 **Hallazgo**: la usuaria corrió el persona test con dos usuarios

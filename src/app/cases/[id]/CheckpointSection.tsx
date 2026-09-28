@@ -3,6 +3,11 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { AiDisclosure } from "@/components/AiDisclosure";
+import {
+  VERDICT_LABELS,
+  VERDICT_STYLES,
+  ConfirmedVerdictCard,
+} from "@/components/CaseStatusCards";
 import { VERDICTS } from "@/lib/validation";
 
 type Verdict = "confirmed" | "failed" | "not_scalable";
@@ -26,22 +31,10 @@ type ConfirmationEvent = {
   reason: string | null;
 } | null;
 
-const VERDICT_LABELS: Record<Verdict, string> = {
-  confirmed: "SEÑAL CONFIRMADA",
-  failed: "SEÑAL FALLÓ",
-  not_scalable: "NO ESCALABLE",
-};
-
 const VERDICT_OPTION_LABELS: Record<Verdict, string> = {
   confirmed: "Confirmada — la señal mejoró",
   failed: "Falló — no hubo mejora",
   not_scalable: "No escalable — no había señal que revisar",
-};
-
-const VERDICT_STYLES: Record<Verdict, string> = {
-  confirmed: "border-emerald-700 bg-emerald-50 text-emerald-900",
-  failed: "border-red-700 bg-red-50 text-red-900",
-  not_scalable: "border-neutral-300 bg-neutral-50 text-neutral-800",
 };
 
 export function CheckpointSection({
@@ -246,43 +239,16 @@ export function CheckpointSection({
         )}
 
       {checkpoint?.confirmed_by_owner_id && checkpoint.verdict !== null && (
-        <div
-          className={`mt-3 rounded border-2 p-5 ${VERDICT_STYLES[checkpoint.verdict]}`}
-        >
-          <h3 className="text-xl font-bold">
-            {VERDICT_LABELS[checkpoint.verdict]}
-          </h3>
-          {confirmationEvent?.event === "checkpoint_overridden" ? (
-            <p className="mt-2 text-sm">
-              Corregido por ti
-              {confirmationEvent.original_verdict
-                ? ` (borrador original: ${VERDICT_LABELS[confirmationEvent.original_verdict]})`
-                : ""}
-              . Razón: {confirmationEvent.reason}
-            </p>
-          ) : (
-            checkpoint.ai_rationale && (
-              <p className="mt-2 text-sm">{checkpoint.ai_rationale}</p>
-            )
-          )}
-          <p className="mt-2 text-xs opacity-80">
-            Confirmado
-            {checkpoint.confirmed_at
-              ? ` el ${new Date(checkpoint.confirmed_at).toLocaleString("es-MX")}`
-              : ""}
-            .
-          </p>
-          {/* El texto de arriba sigue siendo el que redactó el modelo si no
-              se corrigió — la etiqueta no desaparece solo porque ya se
-              confirmó. */}
-          {confirmationEvent?.event !== "checkpoint_overridden" &&
-            checkpoint.verdict !== "not_scalable" &&
-            !comparisonProviderUnavailable && (
-              <div className="mt-3">
-                <AiDisclosure />
-              </div>
-            )}
-        </div>
+        <ConfirmedVerdictCard
+          verdict={checkpoint.verdict}
+          rationale={checkpoint.ai_rationale}
+          confirmedAt={checkpoint.confirmed_at}
+          wasOverridden={confirmationEvent?.event === "checkpoint_overridden"}
+          overrideOriginalVerdict={confirmationEvent?.original_verdict ?? null}
+          overrideReason={confirmationEvent?.reason ?? null}
+          showAiDisclosure={!comparisonProviderUnavailable}
+          correctedByLabel="ti"
+        />
       )}
 
       {error && (

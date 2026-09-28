@@ -64,3 +64,13 @@ export const checkpointConfirmSchema = z.object({
 });
 
 export type CheckpointConfirmInput = z.infer<typeof checkpointConfirmSchema>;
+
+export const demoClassifySchema = z.object({
+  raw_text: z
+    .string()
+    .trim()
+    .min(1, "Escribe cómo se siente la paciente")
+    .max(500, "Máximo 500 caracteres en la demostración"),
+});
+
+export type DemoClassifyInput = z.infer<typeof demoClassifySchema>;
